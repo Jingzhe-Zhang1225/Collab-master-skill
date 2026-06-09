@@ -1,0 +1,330 @@
+# LensTable lens registry — v1.5 v0.1 (30 lenses, 3 per category)
+# 每张卡过 lens_schema.json。id 是受控词表(单一真源就是本文件的 id 集)。
+# reuses_framework: true 的 id 同时是 _shared/taskstate.schema.json 的 frameworkName 成员，必须同拼写。
+# 落地时 validate.py lenses 校验：每卡合规 + 每个 conflicts_with/compatible_with id ∈ 本文件 + 重叠 id 与 frameworkName 同拼写。
+# v0.1 为控体量，evidence_preference / compatible_with 多数留空，靠 selectors.yaml 组合。
+
+lenses:
+
+  # ===== A 认识论 epistemology =====
+  - id: empiricism
+    name: 经验主义
+    category: epistemology
+    core_question: "这个判断有可观测、可重复的证据吗，还是只是推理？"
+    sees: [可观测数据, 可重复性, 基率]
+    ignores: [不可检验的断言, 纯演绎]
+    default_moves: [要可观测证据, 查样本与基率, 问能否重复]
+    attack_questions: ["这结论靠的是证据还是推演？", "样本能代表总体吗？"]
+    output_obligation: ["指出该判断依赖的一条可观测证据，或明确指出它没有"]
+
+  - id: falsificationism
+    name: 证伪主义
+    category: epistemology
+    core_question: "什么观察能证明它错？"
+    sees: [可证伪预测, 风险性预测]
+    ignores: [怎么说都对的叙事]
+    default_moves: [说出一个证伪条件, 找最冒险的预测]
+    attack_questions: ["有没有任何证据能推翻它？不能→它没内容"]
+    output_obligation: ["给出至少一个能证伪当前方案/判断的具体观察"]
+
+  - id: bayesianism
+    name: 贝叶斯主义
+    category: epistemology
+    core_question: "先验是多少？这条证据把它更新了多少？"
+    sees: [先验, 似然, 更新幅度]
+    ignores: [非黑即白的确定性]
+    default_moves: [明示先验, 掂量证据强度, 做方向性更新]
+    attack_questions: ["你的先验是多少？这证据真有那么大更新力？"]
+    output_obligation: ["给出先验 + 这条证据后的方向性更新（不必精确数字）"]
+
+  # ===== B 系统 systems =====
+  - id: systems-thinking
+    name: 系统思维
+    category: systems
+    reuses_framework: true
+    core_question: "背后的反馈回路、延迟、副作用是什么？"
+    sees: [反馈回路, 二阶后果, 延迟, 瓶颈]
+    ignores: [个体情绪, 短期权宜]
+    default_moves: [画元素与依赖, 标正负反馈, 定位延迟, 预测副作用]
+    attack_questions: ["解决 A 会不会放大 B？", "哪个环节有延迟、短期看不出？"]
+    output_obligation: ["≥1 个反馈回路 + 1 个二阶后果 + 1 个延迟效应"]
+
+  - id: complexity-theory
+    name: 复杂性理论
+    category: systems
+    core_question: "这是可线性预测的，还是会涌现/相变的？"
+    sees: [涌现, 非线性, 临界点, 局部规则]
+    ignores: [线性因果, 中心控制]
+    default_moves: [找非线性, 找临界/相变点, 看局部规则如何生成全局]
+    attack_questions: ["你假设线性可控，它会不会突然相变？"]
+    output_obligation: ["指出一个非线性/涌现点，说明线性方案为何会在那里失效"]
+
+  - id: path-dependence
+    name: 路径依赖
+    category: systems
+    core_question: "历史和初始选择如何锁死现在？"
+    sees: [锁定, 切换成本, 历史遗产, 报酬递增]
+    ignores: [白纸最优设计]
+    default_moves: [追溯起点, 找锁定, 估切换成本]
+    attack_questions: ["这是最优解，还是历史锁死的结果？换的代价多大？"]
+    output_obligation: ["指出一个由历史锁死、而非当前最优的约束"]
+
+  # ===== C 经济/激励 economics =====
+  - id: behavioral-economics
+    name: 行为经济学
+    category: economics
+    core_question: "真实的人在什么偏差和摩擦下行动？"
+    sees: [摩擦, 默认项, 损失厌恶, 当下偏好, 社会认同]
+    ignores: [完全理性人假设]
+    default_moves: [找摩擦, 定位默认项, 查拖延/即时反馈缺失]
+    attack_questions: ["你假设用户理性，但拖延、默认、即时反馈不足会怎样？"]
+    output_obligation: ["指出一个会让'理性方案'失效的真实行为摩擦 + 一个降摩擦动作"]
+
+  - id: game-theory
+    name: 博弈论
+    category: economics
+    core_question: "各方激励下的均衡落在哪？"
+    sees: [激励, 均衡, 背叛, 信号]
+    ignores: [默认大家会合作]
+    default_moves: [列参与方, 画收益, 找均衡, 查背叛动机]
+    attack_questions: ["谁有动机背叛？均衡真在你要的地方吗？"]
+    output_obligation: ["列出参与方 + 指出一个背叛激励或非合作均衡"]
+
+  - id: mechanism-design
+    name: 机制设计
+    category: economics
+    core_question: "怎么设计规则，让自利行为产出想要的结果？"
+    sees: [激励相容, 套利空间, 规则漏洞]
+    ignores: [指望各方善意]
+    default_moves: [设计激励, 压测会被怎么钻空子]
+    attack_questions: ["这规则会被怎么钻空子？"]
+    output_obligation: ["指出当前规则的一个被套利/钻空子的方式 + 修正"]
+
+  # ===== D 政治/权力 politics（safety_boundary 必填）=====
+  - id: institutionalism
+    name: 制度主义
+    category: politics
+    core_question: "哪条规则/制度在真正塑形行为？"
+    sees: [正式与非正式规则, 执行力, 制度激励]
+    ignores: [个体意图]
+    default_moves: [找那条规则, 查执行缺口]
+    attack_questions: ["改个人没用——是哪条制度在产生这结果？"]
+    output_obligation: ["指出一条真正塑形结果的制度/规则"]
+    safety_boundary: ["只作分析视角，不主张某制度唯一正确", "必须标出该视角的盲点"]
+
+  - id: foucauldian-power
+    name: 福柯式权力分析
+    category: politics
+    core_question: "谁定义了'正常'？知识/话语在为谁服务？"
+    sees: [权力-知识, 规训/正常化, 谁有定义权]
+    ignores: [中立技术化的表述]
+    default_moves: [问谁在定义, 找正常化机制, 翻出隐藏规训]
+    attack_questions: ["这个'客观标准'是谁定的、规训了谁？"]
+    output_obligation: ["指出一个被当作中立、实则隐含权力的预设"]
+    safety_boundary: ["分析镜头，非政治动员", "不宣传立场，标适用边界与盲点"]
+
+  - id: marxist-analysis
+    name: 生产关系/阶级分析
+    category: politics
+    core_question: "谁占有、谁劳动、剩余流向谁？"
+    sees: [所有权, 劳动, 剩余, 阶级利益]
+    ignores: [利益天然和谐的叙事]
+    default_moves: [追所有权, 跟着剩余走, 找利益冲突]
+    attack_questions: ["这安排的好处最终归谁占有？"]
+    output_obligation: ["指出一个利益/剩余的分配冲突"]
+    safety_boundary: ["作分析视角，非政治动员", "不主张唯一正确，标盲点"]
+
+  # ===== E 伦理 ethics（safety_boundary 必填）=====
+  - id: utilitarianism
+    name: 功利主义
+    category: ethics
+    core_question: "哪个选择总体净福利最大？代价压在谁身上？"
+    sees: [总体福利, 权衡, 代价分布]
+    ignores: [把个体权利当绝对]
+    default_moves: [估净后果, 画代价分布]
+    attack_questions: ["总收益是正的，但代价压在谁头上？"]
+    output_obligation: ["给出净后果判断 + 指出代价承担方"]
+    safety_boundary: ["须与义务论/权利并置，不作唯一裁决", "标盲点：可能碾压少数"]
+
+  - id: deontology
+    name: 义务论
+    category: ethics
+    core_question: "不论后果，有没有不可逾越的义务/权利被违反？"
+    sees: [义务, 权利, 知情同意, 红线]
+    ignores: [目的证明手段正当]
+    default_moves: [找被违反的义务, 查同意, 定位红线]
+    attack_questions: ["就算结果好，这步是否践踏了某项不可让渡的权利？"]
+    output_obligation: ["指出一条无论后果都不能越的义务/权利红线"]
+    safety_boundary: ["须与功利并置", "标盲点：可能僵化、无视后果"]
+
+  - id: care-ethics
+    name: 关怀伦理
+    category: ethics
+    core_question: "谁是脆弱方？关系与照料责任在哪？"
+    sees: [脆弱性, 关系, 依赖, 具体情境]
+    ignores: [抽象的无差别规则]
+    default_moves: [定位最脆弱方, 画照料责任]
+    attack_questions: ["抽象规则之外，谁最脆弱、谁在被忽略？"]
+    output_obligation: ["指出最脆弱方 + 对其的照料责任"]
+    safety_boundary: ["作视角，非唯一标准", "标盲点"]
+
+  # ===== F 心理 psychology =====
+  - id: cognitive-psychology
+    name: 认知心理学
+    category: psychology
+    core_question: "认知负荷/记忆/注意在哪里超载？"
+    sees: [工作记忆上限, 认知负荷, 注意, 组块]
+    ignores: ["让用户再努力点"]
+    default_moves: [找超载点, 砍步骤, 组块化]
+    attack_questions: ["这要用户同时记/想几样东西？超出工作记忆没？"]
+    output_obligation: ["指出一个认知负荷过载点 + 一个降载动作"]
+
+  - id: evolutionary-psychology
+    name: 进化心理学
+    category: psychology
+    core_question: "表面理由之下，这满足哪个古老适应驱动？"
+    sees: [地位, 归属, 亲缘, 威胁探测, 互惠]
+    ignores: [纯理性/白板假设]
+    default_moves: [映射到古老驱动, 查地位信号]
+    attack_questions: ["表面理由之外，这满足的是地位/归属/安全里的哪个？"]
+    output_obligation: ["把表面动机映射到一个深层适应驱动"]
+
+  - id: self-determination-theory
+    name: 自我决定理论
+    category: psychology
+    core_question: "自主/胜任/归属三需求被满足还是被剥夺？"
+    sees: [自主, 胜任, 归属, 内在动机]
+    ignores: [只靠外部奖励]
+    default_moves: [查自主, 查胜任, 查归属]
+    attack_questions: ["这激励是喂内在动机，还是用外部奖励侵蚀它？"]
+    output_obligation: ["对自主/胜任/归属三需求各判一句被满足或被剥夺"]
+
+  # ===== G 设计/产品 design =====
+  - id: jtbd
+    name: 用户任务理论 JTBD
+    category: design
+    reuses_framework: true
+    core_question: "用户真正'雇'它来完成的任务是什么？"
+    sees: [要完成的任务, 挣扎时刻, 雇佣/解雇瞬间, 替代品]
+    ignores: [功能清单, 人口统计]
+    default_moves: [找那个任务, 找挣扎时刻, 找当前替代品]
+    attack_questions: ["用户雇这个不是为了功能，是为了完成什么？现在用什么替代？"]
+    output_obligation: ["写出一条 Job Story（当…我想…以便…）+ 当前替代品"]
+
+  - id: design-thinking
+    name: 设计思维
+    category: design
+    core_question: "真实用户在真实场景里，哪里断了？"
+    sees: [用户痛点, 使用情境, 原型, 共情]
+    ignores: [照自己需求造]
+    default_moves: [观察情境, 定位断点, 低成本原型]
+    attack_questions: ["你见过真实用户卡在哪一步，还是在猜？"]
+    output_obligation: ["指出一个具体使用场景里的断点"]
+
+  - id: lean-startup
+    name: 精益创业
+    category: design
+    core_question: "最便宜能验证核心假设的实验是什么？"
+    sees: [最高风险假设, MVP, 验证性学习]
+    ignores: [先把全部做完]
+    default_moves: [点名最高风险假设, 设计最小验证]
+    attack_questions: ["最致命的未验证假设是哪条？最小怎么验？"]
+    output_obligation: ["指出最高风险假设 + 一个最小验证实验"]
+
+  # ===== H 工程/执行 engineering =====
+  - id: first-principles
+    name: 第一性原理
+    category: engineering
+    reuses_framework: true
+    core_question: "抛开惯例，从不可再分的事实重推会怎样？"
+    sees: [地基事实, 被当前提的假设]
+    ignores: ["因为大家都这么做"]
+    default_moves: [列假设, 标哪些只是惯例, 从底重建]
+    attack_questions: ["这步是物理/逻辑必需，还是只是行业惯例？"]
+    output_obligation: ["列 ≥1 个被当前提、其实只是惯例的假设 + 推翻它后的替代方案"]
+
+  - id: pre-mortem
+    name: 预演失败
+    category: engineering
+    reuses_framework: true
+    core_question: "假设它已经失败了，最可能的死因是什么？"
+    sees: [失败模式, 按概率排序]
+    ignores: [乐观]
+    default_moves: [设想已失败, 按概率列死因, 每条写预防]
+    attack_questions: ["一年后它失败了，最可能因为什么？"]
+    output_obligation: ["≥3 个按概率排序的失败原因 + 每条 1 句预防"]
+
+  - id: reliability-engineering
+    name: 可靠性工程
+    category: engineering
+    core_question: "哪里会坏、坏了怎么发现、怎么恢复？"
+    sees: [故障点, 影响半径, 可观测性, 恢复路径]
+    ignores: [只走happy path]
+    default_moves: [找单点故障, 查可观测性, 规划恢复]
+    attack_questions: ["这挂了你怎么知道？影响多大？怎么回滚？"]
+    output_obligation: ["指出一个单点故障 + 它的发现与恢复路径"]
+
+  # ===== I 美学/叙事 aesthetics =====
+  - id: semiotics
+    name: 符号学
+    category: aesthetics
+    core_question: "它在传递什么意义和暗示？"
+    sees: [符号, 隐含义, 文化编码]
+    ignores: [只看字面功能]
+    default_moves: [解码隐含义, 找文化编码]
+    attack_questions: ["这个选择在文化语境里暗示了什么（也许是反效果）？"]
+    output_obligation: ["指出一个超出字面功能的符号含义"]
+
+  - id: minimalism
+    name: 极简主义
+    category: aesthetics
+    core_question: "拿掉什么之后它反而更强？"
+    sees: [冗余, 本质vs装饰, 信噪比]
+    ignores: ["越多越好"]
+    default_moves: [剥到本质, 删了再看]
+    attack_questions: ["删掉哪一半，核心反而更清楚？"]
+    output_obligation: ["指出至少一处可删、且删后更强的元素"]
+
+  - id: narratology
+    name: 叙事理论
+    category: aesthetics
+    core_question: "这里的故事弧线、张力、视角是什么？"
+    sees: [弧线, 张力, 视角, 利害]
+    ignores: [信息倾倒]
+    default_moves: [找弧线, 定位张力, 选视角]
+    attack_questions: ["受众为什么会在乎？张力和利害在哪？"]
+    output_obligation: ["给出一条叙事弧（钩子→张力→转折），或指出它根本没有"]
+
+  # ===== J 东方/实践哲学 eastern（safety_boundary 必填）=====
+  - id: daoism
+    name: 道家
+    category: eastern
+    core_question: "哪里在用力过猛？顺势/做减法会怎样？"
+    sees: [过度设计, 自然趋势, 何时不动]
+    ignores: [想控制一切]
+    default_moves: [找用力过猛处, 看趋势的纹理, 考虑少做]
+    attack_questions: ["这是顺势，还是在跟趋势硬扛？少做点会怎样？"]
+    output_obligation: ["指出一处用力过猛、可顺势或做减法之处"]
+    safety_boundary: ["作思维视角，非教条", "标盲点：可能流于消极"]
+
+  - id: legalism
+    name: 法家
+    category: eastern
+    core_question: "不靠人的善意，靠哪条明确规则和赏罚兜底？"
+    sees: [明确规则, 执行, 问责, 不依赖德性]
+    ignores: [指望各方自觉做对]
+    default_moves: [定清晰规则, 设后果, 在高风险处去裁量权]
+    attack_questions: ["如果不能指望各方自觉，靠哪条硬规则兜底？"]
+    output_obligation: ["给出一条不依赖善意的明确规则 + 赏罚"]
+    safety_boundary: ["视角，非主张威权", "标盲点：可能僵化、压制"]
+
+  - id: strategic-thought
+    name: 兵家/势
+    category: eastern
+    core_question: "形势、先手、虚实在哪？哪里用力最省？"
+    sees: [杠杆点, 时机, 位置, 对方预期]
+    ignores: [正面蛮力硬推]
+    default_moves: [找杠杆点, 看时机, 用出其不意]
+    attack_questions: ["正面硬推最省力吗？势和先手在哪？"]
+    output_obligation: ["指出一个以小博大的杠杆点或时机"]
+    safety_boundary: ["作策略视角，不用于操纵或欺骗他人", "标边界"]

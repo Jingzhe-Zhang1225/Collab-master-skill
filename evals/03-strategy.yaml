@@ -1,0 +1,574 @@
+module: strategy
+source: ../_shared/mock-cases.json
+cases:
+- id: S1
+  quadrant: N
+  note: 'strategy: 部门经理周报'
+  input:
+    intake:
+      intent: report
+      taskTypes:
+      - type: present
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: EXECUTIVE
+      audienceProfile:
+        dimensions:
+          explainDepth: brief
+          technicalDetail: medium
+          actionOrientation: decide
+          tone: direct
+          formality: professional
+          visualNeed: none
+          backgroundAssumed: practitioner
+      successCriteria:
+      - 结论先行
+      - 5秒可扫读
+      - 行动项可分配
+- id: S2
+  quadrant: N
+  note: 'strategy: 大二学生排序算法'
+  input:
+    intake:
+      intent: learn
+      taskTypes:
+      - type: explain
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: COACH
+      audienceProfile:
+        dimensions:
+          explainDepth: deep
+          technicalDetail: medium
+          actionOrientation: learn
+          tone: warm
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: learner
+      successCriteria:
+      - 核心概念准确
+      - 可迁移方法
+      - 常见误区已覆盖
+- id: S3
+  quadrant: N
+  note: 'strategy: 后端工程师微服务(medium risk)'
+  input:
+    intake:
+      intent: execute
+      taskTypes:
+      - type: code
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: medium
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: STANDARD
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: high
+          actionOrientation: execute
+          tone: direct
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: practitioner
+      successCriteria:
+      - 边界条件
+      - 异常路径
+      - 可测试性
+- id: S4
+  quadrant: N
+  note: 'strategy: 同S3但risk=high→DEEP升级'
+  input:
+    intake:
+      intent: execute
+      taskTypes:
+      - type: code
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: high
+      complexityTier: high
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: DEEP
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: high
+          actionOrientation: execute
+          tone: direct
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: practitioner
+      successCriteria:
+      - 验证步骤
+      - checkpoint
+      - 多方案比较
+- id: S5
+  quadrant: N
+  note: 'strategy: 送礼物→CREATIVE+九形状反坍缩'
+  input:
+    intake:
+      intent: create
+      taskTypes:
+      - type: ideate
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: CREATIVE
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: low
+          actionOrientation: create
+          tone: warm
+          formality: casual
+          visualNeed: medium
+          backgroundAssumed: learner
+      successCriteria:
+      - 本质差异方向≥8
+      - 至少1个反直觉选项
+      - 排除项≥2
+- id: S6
+  quadrant: N
+  note: 'strategy: 排查线上500→DEBUG'
+  input:
+    intake:
+      intent: debug
+      taskTypes:
+      - type: code
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: medium
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: DEBUG
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: high
+          actionOrientation: execute
+          tone: direct
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: practitioner
+      successCriteria:
+      - 根因定位
+      - 最小复现
+      - 验证步骤
+      - 防复发
+- id: S7
+  quadrant: N
+  note: 'strategy: CEO年度战略→EXECUTIVE+inspirational'
+  input:
+    intake:
+      intent: report
+      taskTypes:
+      - type: present
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: EXECUTIVE
+      audienceProfile:
+        dimensions:
+          explainDepth: brief
+          technicalDetail: medium
+          actionOrientation: report
+          tone: inspirational
+          formality: professional
+          visualNeed: none
+          backgroundAssumed: practitioner
+      successCriteria:
+      - 结论先行
+      - 战略优先级清晰
+      - 行动项可决策
+- id: S8
+  quadrant: N
+  note: 'strategy: 流失分析→DEEP+systems-thinking(反馈环非钻井)'
+  input:
+    intake:
+      intent: explore
+      taskTypes:
+      - type: analyze
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: medium
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: DEEP
+      audienceProfile:
+        dimensions:
+          explainDepth: deep
+          technicalDetail: medium
+          actionOrientation: execute
+          tone: direct
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: practitioner
+      successCriteria:
+      - 反馈回路识别
+      - 可干预节点标出
+      - 非线性效应显式说明
+- id: S9
+  quadrant: N
+  note: 'strategy: 微电子学生送礼物→身份退零(解耦核心)'
+  input:
+    intake:
+      intent: create
+      taskTypes:
+      - type: ideate
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+    userIdentityHint: 微电子专业学生给女朋友选礼物
+  expected:
+    strategy:
+      workMode: CREATIVE
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: none
+          actionOrientation: create
+          tone: warm
+          formality: casual
+          visualNeed: medium
+          backgroundAssumed: learner
+- id: S10
+  quadrant: N
+  note: 'strategy: 前端工程师选电脑→身份部分可用'
+  input:
+    intake:
+      intent: decide
+      taskTypes:
+      - type: product-select
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+    userIdentityHint: 前端工程师选笔记本电脑
+  expected:
+    strategy:
+      workMode: STANDARD
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: medium
+          actionOrientation: decide
+          tone: direct
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: practitioner
+- id: S11
+  quadrant: N
+  note: 'strategy: 空身份→全中性+FAST(负对照)'
+  input:
+    intake:
+      intent: explore
+      taskTypes:
+      - type: fact-check
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: low
+      canAnswerDirectly: true
+    userIdentityHint: ''
+  expected:
+    strategy:
+      workMode: FAST
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: medium
+          actionOrientation: execute
+          tone: neutral
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: practitioner
+- id: S12
+  quadrant: N
+  note: 'strategy: 投资顾问给自己做规划→formality=neutral非professional'
+  input:
+    intake:
+      intent: execute
+      taskTypes:
+      - type: plan
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: medium
+      complexityTier: medium
+      canAnswerDirectly: true
+    userIdentityHint: 投资顾问做个人理财规划
+  expected:
+    strategy:
+      workMode: STANDARD
+      audienceProfile:
+        dimensions:
+          explainDepth: normal
+          technicalDetail: medium
+          actionOrientation: execute
+          tone: direct
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: practitioner
+- id: STR-013
+  quadrant: N
+  note: FAST simple fact
+  input:
+    intake:
+      intent: explore
+      taskTypes:
+      - type: fact-check
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: low
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: FAST
+      reasoningFrameworks:
+      - name: direct-check
+        role: primary
+        instructions:
+        - answer only the narrow fact
+- id: STR-014
+  quadrant: N
+  note: financial education -> COACH not high-risk DEEP
+  input:
+    intake:
+      intent: learn
+      taskTypes:
+      - type: explain
+        role: primary
+      domains:
+      - financial
+      clarificationNeeded: false
+    boundary:
+      riskLevel: medium
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: COACH
+      audienceProfile:
+        dimensions:
+          explainDepth: deep
+          technicalDetail: medium
+          actionOrientation: learn
+          tone: warm
+          formality: neutral
+          visualNeed: none
+          backgroundAssumed: learner
+- id: STR-015
+  quadrant: N
+  note: privacy high risk -> DEEP
+  input:
+    intake:
+      intent: execute
+      taskTypes:
+      - type: process-file
+        role: primary
+      domains:
+      - privacy
+      clarificationNeeded: false
+    boundary:
+      riskLevel: high
+      complexityTier: high
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: DEEP
+      successCriteria:
+      - risk boundaries preserved
+      - verification before output
+      reasoningFrameworks:
+      - name: pre-mortem
+        role: check
+        instructions:
+        - identify privacy leakage paths
+- id: STR-016
+  quadrant: N
+  note: architecture design high complexity
+  input:
+    intake:
+      intent: execute
+      taskTypes:
+      - type: design
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: medium
+      complexityTier: high
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: DEEP
+      reasoningFrameworks:
+      - name: systems-thinking
+        role: primary
+        instructions:
+        - map dependencies and side effects
+      - name: pre-mortem
+        role: check
+        instructions:
+        - list failure modes before choosing
+- id: STR-017
+  quadrant: N
+  note: creative naming -> CREATIVE
+  input:
+    intake:
+      intent: create
+      taskTypes:
+      - type: write
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: CREATIVE
+      reasoningFrameworks:
+      - name: divergent-convergent
+        role: primary
+        instructions:
+        - generate distinct directions before ranking
+- id: STR-018
+  quadrant: N
+  note: decision with tradeoffs -> STANDARD impact-effort
+  input:
+    intake:
+      intent: decide
+      taskTypes:
+      - type: select
+        role: primary
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: STANDARD
+      reasoningFrameworks:
+      - name: impact-effort
+        role: primary
+        instructions:
+        - rank options by impact and effort
+- id: STR-019
+  quadrant: N
+  note: client proposal -> EXECUTIVE professional
+  input:
+    intake:
+      intent: report
+      taskTypes:
+      - type: present
+        role: primary
+      knownContext:
+      - ???
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: EXECUTIVE
+      audienceProfile:
+        dimensions:
+          explainDepth: brief
+          technicalDetail: medium
+          actionOrientation: report
+          tone: direct
+          formality: professional
+          visualNeed: none
+          backgroundAssumed: practitioner
+- id: STR-020
+  quadrant: N
+  note: do not over-personalize irrelevant major
+  input:
+    intake:
+      intent: create
+      taskTypes:
+      - type: ideate
+        role: primary
+      knownContext:
+      - ???????????
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      canAnswerDirectly: true
+  expected:
+    strategy:
+      workMode: CREATIVE
+      audienceProfile:
+        roleHint: gift giver
+        dimensions:
+          explainDepth: normal
+          technicalDetail: none
+          actionOrientation: create
+          tone: warm
+          formality: casual
+          visualNeed: medium
+          backgroundAssumed: learner

@@ -1,0 +1,401 @@
+module: solutionSpace
+source: ../_shared/mock-cases.json
+cases:
+- id: SS1
+  quadrant: N
+  note: 'solution-space: creative gift ideation with truthConstraint'
+  input:
+    userMessage: 给女朋友选生日礼物
+    intake:
+      intent: create
+      taskTypes:
+      - type: ideate
+        role: primary
+      knownContext: []
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      truthConstraints:
+      - 不输出电商热销榜式答案
+    strategy:
+      workMode: CREATIVE
+      successCriteria:
+      - 本质差异方向≥8
+      - 至少1个反直觉选项
+      - 排除项≥2
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: creative
+      divergeResult:
+        count: 8
+        anglesCovered:
+        - practical
+        - emotional-value
+        - experience
+        - counter-intuitive
+        - niche
+        - identity
+        hasCounterIntuitiveOption: true
+- id: SS2
+  quadrant: N
+  note: 'solution-space: creative gift ideation NO constraint'
+  input:
+    userMessage: 给女朋友选生日礼物
+    intake:
+      intent: create
+      taskTypes:
+      - type: ideate
+        role: primary
+      knownContext: []
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      truthConstraints: []
+    strategy:
+      workMode: CREATIVE
+      successCriteria:
+      - 本质差异方向≥8
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: creative
+      divergeResult:
+        hasCounterIntuitiveOption: true
+        count: 8
+- id: SS3
+  quadrant: N
+  note: 'solution-space: debug 500 error hypotheses'
+  input:
+    userMessage: 排查线上500错误
+    intake:
+      intent: debug
+      taskTypes:
+      - type: code
+        role: primary
+      knownContext: []
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: medium
+      complexityTier: medium
+      truthConstraints: []
+    strategy:
+      workMode: DEBUG
+      successCriteria:
+      - 根因定位
+      - 最小复现
+      - 验证步骤
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: debug
+      divergeResult:
+        count: 5
+        anglesCovered:
+        - input-boundary
+        - environment-difference
+        - timing-or-concurrency
+        - dependency-chain
+        - data-state
+        - recent-change
+- id: SS4
+  quadrant: N
+  note: 'solution-space: decide product selection'
+  input:
+    userMessage: 推荐最适合的产品
+    intake:
+      intent: decide
+      taskTypes:
+      - type: select
+        role: primary
+      knownContext: []
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      truthConstraints: []
+    strategy:
+      workMode: STANDARD
+      successCriteria:
+      - 选项在同一维度比较
+      - 推荐有推理链
+      - 风险显式
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: decision
+      divergeResult:
+        count: 4
+- id: SS5
+  quadrant: N
+  note: 'solution-space: DEEP design with cost constraint'
+  input:
+    userMessage: 设计新系统架构
+    intake:
+      intent: execute
+      taskTypes:
+      - type: design
+        role: primary
+      knownContext: []
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: high
+      complexityTier: high
+      truthConstraints:
+      - 成本≤现有方案
+      - 不引入新依赖
+    strategy:
+      workMode: DEEP
+      successCriteria:
+      - 输出可直接使用
+      - 边界条件覆盖
+      - 多方案比较
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: design
+- id: SS6
+  quadrant: N
+  note: 'solution-space: creative gift with user context'
+  input:
+    userMessage: 给对方选礼物
+    intake:
+      intent: create
+      taskTypes:
+      - type: ideate
+        role: primary
+      knownContext:
+      - 对方是程序员, 最近加班多, 颈椎不好
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      truthConstraints: []
+    strategy:
+      workMode: CREATIVE
+      successCriteria:
+      - 本质差异方向≥8
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: creative
+      creativeAngles:
+      - posture-neck-recovery
+      - programmer-specific
+- id: SS7
+  quadrant: N
+  note: 'solution-space: EXECUTIVE should skip divergence'
+  input:
+    userMessage: 写周报摘要
+    intake:
+      intent: report
+      taskTypes:
+      - type: present
+        role: primary
+      knownContext: []
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      truthConstraints: []
+    strategy:
+      workMode: EXECUTIVE
+      successCriteria:
+      - 结论先行
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: false
+      skipReason: not an open-ended or multi-option task
+- id: SS8
+  quadrant: N
+  note: 'solution-space: simple plan does not force 8'
+  input:
+    userMessage: 规划学习路线
+    intake:
+      intent: execute
+      taskTypes:
+      - type: plan
+        role: primary
+      knownContext: []
+      assumptions: []
+      uncertainPoints: []
+      clarificationNeeded: false
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      truthConstraints: []
+    strategy:
+      workMode: DEEP
+      successCriteria: []
+      audienceProfile: {}
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: light
+- id: SS9
+  quadrant: N
+  note: skip low fact
+  input:
+    intake:
+      intent: explore
+      taskTypes:
+      - type: fact-check
+        role: primary
+      uncertainPoints: []
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: low
+      truthConstraints: []
+    strategy:
+      workMode: FAST
+      successCriteria: []
+  expected:
+    solutionSpace:
+      shouldRun: false
+      skipReason: low-complexity direct answer
+      divergenceMode: none
+      optionSpace: []
+- id: SS10
+  quadrant: N
+  note: architecture alternatives design
+  input:
+    userMessage: ???????????????
+    intake:
+      intent: execute
+      taskTypes:
+      - type: design
+        role: primary
+      uncertainPoints: []
+      domains: []
+    boundary:
+      riskLevel: medium
+      complexityTier: high
+      truthConstraints:
+      - ??????????
+    strategy:
+      workMode: DEEP
+      successCriteria:
+      - ?????
+      - ????
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: design
+      divergeResult:
+        count: 5
+        anglesCovered:
+        - local-first
+        - server-authoritative
+        - conflict-free
+        - manual-sync
+- id: SS11
+  quadrant: N
+  note: decision option expansion
+  input:
+    userMessage: ??????????
+    intake:
+      intent: decide
+      taskTypes:
+      - type: select
+        role: primary
+      uncertainPoints: []
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: medium
+      truthConstraints: []
+    strategy:
+      workMode: STANDARD
+      successCriteria:
+      - ?????
+  expected:
+    solutionSpace:
+      shouldRun: true
+      divergenceMode: decision
+      divergeResult:
+        count: 4
+      recommendedFocus: compare options on shared dimensions
+- id: SS12
+  quadrant: N
+  note: simple rewrite skip solution-space
+  input:
+    userMessage: ????????
+    intake:
+      intent: execute
+      taskTypes:
+      - type: rewrite
+        role: primary
+      uncertainPoints: []
+      domains: []
+    boundary:
+      riskLevel: low
+      complexityTier: low
+      truthConstraints:
+      - ?????
+    strategy:
+      workMode: FAST
+      successCriteria: []
+  expected:
+    solutionSpace:
+      shouldRun: false
+      skipReason: single-path rewrite
+      divergenceMode: none
+- id: SS13
+  quadrant: N
+  note: high risk medical should not creative-diverge treatment
+  input:
+    userMessage: ??????
+    intake:
+      intent: decide
+      taskTypes:
+      - type: advise
+        role: primary
+      domains:
+      - medical
+      uncertainPoints: []
+    boundary:
+      riskLevel: high
+      complexityTier: high
+      truthConstraints:
+      - ??????
+    strategy:
+      workMode: DEEP
+      successCriteria:
+      - ????
+  expected:
+    solutionSpace:
+      shouldRun: false
+      skipReason: high-risk safe-completion only
+      divergenceMode: none

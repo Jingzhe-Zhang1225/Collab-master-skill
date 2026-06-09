@@ -1,0 +1,11 @@
+{
+  "name": "collab-master-skill",
+  "owner": "Jingzhe zhang, Claude",
+  "description": "A collaborative AI workflow controller â€?not a prompt optimizer. Decides when to ask, assume, verify, diverge, converge, answer, recover, hand off, or stop. Covers planning, debugging, writing, prompt/skill design, document transformation, decision support, creative exploration, composite tasks, and high-risk domains.",
+  "skills": [
+    {
+      "name": "collab-master-skill",
+      "description": "Collaborative workflow controller for ambiguous, multi-step, quality-sensitive, and multi-turn tasks. Routes by complexity tier, preserves user constraints, runs quality gates, and manages async memory."
+    }
+  ]
+}

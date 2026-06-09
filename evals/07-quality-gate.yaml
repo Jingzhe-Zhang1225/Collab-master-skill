@@ -1,0 +1,491 @@
+module: qualityGate
+source: ../_shared/mock-cases.json
+cases:
+- id: QG-001
+  quadrant: N
+  note: clean draft passes
+  input:
+    draftOutput:
+      tier1: ???
+      tier2:
+      - ??
+      tier3: ?????
+    boundary:
+      truthConstraints: []
+      uncertainClaims: []
+    strategy:
+      workMode: STANDARD
+  expected:
+    qualityGate:
+      passed: true
+      failedGate: null
+      redlineViolations: []
+      revisionTarget: null
+      stopLoss: false
+      gates:
+        fatal:
+          pass: true
+        quality:
+          fingerprint:
+            pass: true
+          hardToVary:
+            pass: true
+          novelty:
+            pass: true
+            skipped: true
+        feeling:
+          pass: true
+- id: QG-002
+  quadrant: N
+  note: truth constraint violation
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 0
+      revisionTarget: boundary-truth
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-003
+  quadrant: N
+  note: over-questioning
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 1
+      revisionTarget: interaction-compose(6a)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-004
+  quadrant: N
+  note: vague words
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 3
+      revisionTarget: interaction-compose(6c)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-005
+  quadrant: N
+  note: fake self-check
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 4
+      revisionTarget: execution-control
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-006
+  quadrant: N
+  note: uncertain as fact
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 6
+      revisionTarget: boundary-truth
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-007
+  quadrant: N
+  note: goal swap
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 8
+      revisionTarget: intake
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-008
+  quadrant: N
+  note: over-complicated simple fact
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 9
+      revisionTarget: strategy
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-009
+  quadrant: N
+  note: premature convergence
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 10
+      revisionTarget: solution-space
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-010
+  quadrant: N
+  note: term without plain
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 11
+      revisionTarget: interaction-compose(6c)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-011
+  quadrant: N
+  note: cliche opening
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 12
+      revisionTarget: interaction-compose(6c)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-012
+  quadrant: N
+  note: filler words
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 13
+      revisionTarget: interaction-compose(6c)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-013
+  quadrant: N
+  note: over guiding
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 14
+      revisionTarget: interaction-compose(6c)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-014
+  quadrant: N
+  note: missing formalization
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 15
+      revisionTarget: interaction-compose(6c)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-015
+  quadrant: N
+  note: missing boundary
+  input:
+    draftOutput:
+      tier1: bad
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 16
+      revisionTarget: interaction-compose(6c)
+      stopLoss: false
+      gates:
+        fatal:
+          pass: false
+- id: QG-016
+  quadrant: N
+  note: fingerprint fail
+  input:
+    draftOutput:
+      tier1: ?????
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: fingerprint
+      revisionTarget: interaction-compose(6c)
+      redlineViolations: []
+      stopLoss: false
+      gates:
+        quality:
+          fingerprint:
+            pass: false
+- id: QG-017
+  quadrant: N
+  note: hard-to-vary fail
+  input:
+    draftOutput:
+      tier3: ???????????
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: hard-to-vary
+      revisionTarget: interaction-compose(6c)
+      redlineViolations: []
+      stopLoss: false
+      gates:
+        quality:
+          hardToVary:
+            pass: false
+- id: QG-018
+  quadrant: N
+  note: novelty fail creative
+  input:
+    strategy:
+      workMode: CREATIVE
+    draftOutput:
+      tier2:
+      - ???
+      - ???
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: novelty
+      revisionTarget: solution-space
+      redlineViolations: []
+      stopLoss: false
+      gates:
+        quality:
+          novelty:
+            pass: false
+            skipped: false
+- id: QG-019
+  quadrant: N
+  note: novelty skipped non-creative
+  input:
+    strategy:
+      workMode: STANDARD
+    draftOutput:
+      tier2:
+      - ????
+  expected:
+    qualityGate:
+      passed: true
+      failedGate: null
+      redlineViolations: []
+      revisionTarget: null
+      stopLoss: false
+      gates:
+        quality:
+          novelty:
+            pass: true
+            skipped: true
+- id: QG-020
+  quadrant: N
+  note: feeling gate fail
+  input:
+    draftOutput:
+      tier1: ????AI????????????
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: feeling
+      revisionTarget: interaction-compose(6c)
+      redlineViolations: []
+      stopLoss: false
+      gates:
+        feeling:
+          pass: false
+- id: QG-021
+  quadrant: N
+  note: multi fail redline wins
+  input:
+    draftOutput:
+      tier1: violates truth and generic
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 0
+      - 5
+      revisionTarget: boundary-truth
+      stopLoss: false
+- id: QG-022
+  quadrant: N
+  note: multi quality fingerprint wins novelty
+  input:
+    strategy:
+      workMode: CREATIVE
+    draftOutput:
+      tier1: generic creative
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: fingerprint
+      revisionTarget: interaction-compose(6c)
+      redlineViolations: []
+      stopLoss: false
+- id: QG-023
+  quadrant: N
+  note: same redline stop loss
+  input:
+    qualityGateHistory:
+    - redlineViolations:
+      - 3
+    - redlineViolations:
+      - 3
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: redline
+      redlineViolations:
+      - 3
+      revisionTarget: minimal-usable-version
+      stopLoss: true
+- id: QG-024
+  quadrant: N
+  note: feeling x3 stop loss
+  input:
+    qualityGateHistory:
+    - failedGate: feeling
+    - failedGate: feeling
+    - failedGate: feeling
+  expected:
+    qualityGate:
+      passed: false
+      failedGate: feeling
+      revisionTarget: minimal-usable-version
+      stopLoss: true
+- id: QG-025
+  quadrant: N
+  note: simple command skips formalization redline
+  input:
+    intake:
+      intent: execute
+      taskTypes:
+      - type: code
+        role: primary
+    draftOutput:
+      tier1: ?? npm test?
+  expected:
+    qualityGate:
+      passed: true
+      failedGate: null
+      redlineViolations: []
+      revisionTarget: null
+      stopLoss: false
+- id: QG-026
+  quadrant: N
+  note: uncertain marked passes
+  input:
+    boundary:
+      uncertainClaims:
+      - ????
+    draftOutput:
+      tier1: '[???: ????] ??????'
+  expected:
+    qualityGate:
+      passed: true
+      failedGate: null
+      redlineViolations: []
+      revisionTarget: null
+      stopLoss: false
+- id: QG-027
+  quadrant: N
+  note: term with plain language passes
+  input:
+    draftOutput:
+      tier1: ???????????????????
+  expected:
+    qualityGate:
+      passed: true
+      failedGate: null
+      redlineViolations: []
+      revisionTarget: null
+      stopLoss: false
+- id: QG-028
+  quadrant: N
+  note: high risk carries review note
+  input:
+    boundary:
+      riskLevel: high
+    draftOutput:
+      tier1: ????????
+  expected:
+    qualityGate:
+      passed: true
+      redlineViolations: []
+      revisionNotes:
+      - ?????????
+      stopLoss: false

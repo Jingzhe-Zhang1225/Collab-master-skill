@@ -1,0 +1,34 @@
+# LensTable selectors — v1.5 v0.1
+# 角色为骨架(必选)，镜头为可选增强(full 档才叠)。lens id 必须 ∈ lenses.yaml。
+
+# 角色集：按 solution-space.divergenceMode 选 3-4 个 + chair(常在)
+role_sets:
+  creative:        [user-advocate, divergent-thinker, critic, chair]
+  design:          [implementer, critic, divergent-thinker, chair]
+  strategy:        [implementer, critic, divergent-thinker, chair]
+  debug:           [implementer, critic, chair]
+  decision:        [user-advocate, critic, steward, chair]
+  concept:         [divergent-thinker, critic, chair]
+  ethical_or_high_risk: [user-advocate, steward, critic, chair]   # steward 入场
+
+# 5 槽覆盖：选角色/镜头时尽量各覆盖一个槽(高复杂任务尽量齐，不强制全)
+five_slots: [用户/体验, 系统/反馈, 价值/伦理, 落地/约束, 反方/失败]
+
+# 镜头组合(可选，full 档)：给角色 session 叠 ≤1 个 lens 加深框
+# 选取原则=正交：别全选同温层(如 minimalism+formalism 都偏形式)
+lens_combos:
+  product_strategy:     [jtbd, behavioral-economics, systems-thinking, pre-mortem]
+  technical_design:     [first-principles, reliability-engineering, pre-mortem]
+  social_analysis:      [institutionalism, foucauldian-power, behavioral-economics, systems-thinking]
+  ethical_decision:     [utilitarianism, deontology, care-ethics]
+  creative_direction:   [semiotics, minimalism, narratology]
+  research_or_claim:    [empiricism, falsificationism, bayesianism]
+  growth_or_user:       [jtbd, behavioral-economics, self-determination-theory, design-thinking]
+  strategy_or_competition: [game-theory, mechanism-design, strategic-thought, systems-thinking]
+
+orthogonality_rule: |
+  坏组合：全偏同一面（如 marxist-analysis + foucauldian-power + 后结构，全往权力/话语压）。
+  好组合：一个看结构、一个看激励、一个看反馈、一个看落地、一个看失败。
+  选完自检：这几个镜头的 sees/ignores 是否真的互补？若 ≥2 个 ignores 列表高度重合 → 换一个。
+
+# v0.1 不做：图论自动正交、conflicts_with 自动排斥、80-120 库。靠上面默认表 + 人工正交自检。

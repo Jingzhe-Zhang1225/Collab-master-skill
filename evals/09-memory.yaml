@@ -1,0 +1,214 @@
+module: memory
+source: ../_shared/mock-cases.json
+cases:
+- id: MEM-001
+  quadrant: N
+  note: explicit thinking mode
+  input:
+    currentTask:
+      userCorrections:
+      - ??????
+  expected:
+    memory:
+      memoryEntry:
+        category: thinking_mode
+        observation: ??????????
+        confidence: explicit
+        scope: cross_task
+      workflowRecord:
+        detected: false
+      anomalyRecord:
+        detected: false
+- id: MEM-002
+  quadrant: N
+  note: language habit no preamble
+  input:
+    currentTask:
+      userCorrections:
+      - ???????
+  expected:
+    memory:
+      memoryEntry:
+        category: language_habit
+        observation: ???????????
+        confidence: explicit
+        scope: cross_task
+      workflowRecord:
+        detected: false
+      anomalyRecord:
+        detected: false
+- id: MEM-003
+  quadrant: N
+  note: collaboration signal dislikes format questions
+  input:
+    currentTask:
+      userCorrections:
+      - ????????????
+  expected:
+    memory:
+      memoryEntry:
+        category: collaboration_signal
+        observation: ??????????
+        confidence: inferred
+        scope: cross_task
+      workflowRecord:
+        detected: false
+      anomalyRecord:
+        detected: false
+- id: MEM-004
+  quadrant: N
+  note: workflow emerges after 3 weekly reports
+  input:
+    recentTaskHistory:
+    - intent: report
+      taskType: present
+      correction: ????
+    - intent: report
+      taskType: present
+      correction: ????
+    - intent: report
+      taskType: present
+      correction: ????
+  expected:
+    memory:
+      workflowRecord:
+        detected: true
+        name: ??
+        triggerKeywords:
+        - ??
+        - weekly
+        matchedPattern:
+          intent: report
+          taskTypes:
+          - present
+        structuralDefaults:
+          sectionOrder: ????
+          skipSections: []
+        correctionDimension: ??
+        occurrenceCount: 3
+      anomalyRecord:
+        detected: false
+- id: MEM-005
+  quadrant: N
+  note: first outlier filters thinking mode
+  input:
+    currentTask:
+      domain: MIPS???
+    existingMemory:
+    - ??=????
+  expected:
+    memory:
+      anomalyRecord:
+        detected: true
+        type: out_of_domain
+        keptCategories:
+        - language_habit
+        - collaboration_signal
+        excludedCategories:
+        - thinking_mode
+        reason: ??????
+- id: MEM-006
+  quadrant: N
+  note: no boundary no memory fire
+  input:
+    currentTask:
+      taskBoundarySignal: null
+  expected:
+    memory:
+      workflowRecord:
+        detected: false
+      anomalyRecord:
+        detected: false
+- id: MEM-007
+  quadrant: N
+  note: explicit remember workflow
+  input:
+    currentTask:
+      userMessage: ???????????????
+  expected:
+    memory:
+      workflowRecord:
+        detected: true
+        name: ??
+        structuralDefaults:
+          sectionOrder: ??????
+        occurrenceCount: 1
+      anomalyRecord:
+        detected: false
+- id: MEM-008
+  quadrant: N
+  note: forget command removes matching line candidate
+  input:
+    currentTask:
+      userMessage: ??????
+  expected:
+    memory:
+      workflowRecord:
+        detected: false
+      anomalyRecord:
+        detected: false
+- id: MEM-009
+  quadrant: N
+  note: one-off file path not remembered
+  input:
+    currentTask:
+      userCorrections:
+      - ????? D:/tmp/a.docx
+  expected:
+    memory:
+      workflowRecord:
+        detected: false
+      anomalyRecord:
+        detected: false
+- id: MEM-010
+  quadrant: N
+  note: same anomaly repeated no longer anomaly
+  input:
+    recentTaskHistory:
+    - domain: MIPS
+    - domain: MIPS
+    - domain: MIPS
+  expected:
+    memory:
+      anomalyRecord:
+        detected: false
+- id: MEM-011
+  quadrant: N
+  note: task-specific memory scope
+  input:
+    currentTask:
+      userCorrections:
+      - ?????????????
+  expected:
+    memory:
+      memoryEntry:
+        category: language_habit
+        observation: ??????????
+        confidence: explicit
+        scope: task_specific
+      workflowRecord:
+        detected: false
+- id: MEM-012
+  quadrant: N
+  note: anomaly keeps language habit
+  input:
+    currentTask:
+      domain: ?????
+      userCorrections:
+      - ???
+    existingMemory:
+    - ??=??/??
+  expected:
+    memory:
+      memoryEntry:
+        category: language_habit
+        observation: ??????
+        confidence: explicit
+        scope: cross_task
+      anomalyRecord:
+        detected: true
+        keptCategories:
+        - language_habit
+        - collaboration_signal
+        excludedCategories:
+        - thinking_mode
