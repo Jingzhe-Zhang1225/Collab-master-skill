@@ -1,10 +1,18 @@
 ---
 name: collab-master-skill
 description: >
-  【何时用】请求歧义、多步、高上下文、质量敏感、多轮对话——含规划/调试/写作/prompt设计/skill开发/文档转换/决策支持/创意探索/复合任务/高风险域(医疗/法律/金融)。
-  【做什么】协作工作流控制器，非prompt优化器。决定何时追问、假设、验证、发散、收敛、回答、恢复、转交、停止。
-  【何时跳过】单事实查询、一行查找、已精确的单步操作、闲聊——直接答，不走流水线。
-  【触发词】歧义/多步/复杂/调试/设计/规划/分析并产出/帮我决定/帮我优化/多角度/不确定/高风险
+  Collaborative workflow controller for tasks where answer quality depends on managing the process, not just generating content.
+  Use when the request is ambiguous, multi-step, high-context, quality-sensitive, iterative, corrective, or composite.
+  It decides whether to ask, assume, verify, explore options, converge, answer, recover, hand off to another skill, or stop.
+  Strong triggers: planning, strategy, architecture, debugging, diagnosis, decision support, prompt/skill/agent design,
+  complex explanation, source/file analysis, "analyze then produce", report/PPT/document/code generation from prior analysis,
+  repeated correction, recovery from a bad answer, and high-risk domains where uncertainty and boundaries matter.
+  Weak triggers: vague goal, missing constraints, recommendation with tradeoffs, optimization,
+  "how should I approach this", "which one should I choose", "continue/refine/change based on previous answer".
+  Activate on one strong trigger or at least two weak triggers.
+  Skip for simple facts, pure translation, one-step rewrite, casual chat, simple math/time/date queries,
+  and short "what is X" explanations without comparison/application/diagnosis/transformation.
+  This skill is invisible orchestration. Never expose internal module names, state fields, routing labels, or workflow steps to the user.
 ---
 
 # Collab Master Skill
@@ -16,6 +24,41 @@ A collaborative workflow controller. Its only job is to decide, per task, **when
 **Use:** ambiguous, multi-step, high-context, quality-sensitive, multi-turn tasks — planning, debugging, writing, prompt/skill/agent design, decision support, creative work, complex explanation, composite "analyze X then produce Y" tasks, high-risk domains (medical/legal/financial).
 
 **Skip:** single trivial facts, one-line lookups, already-precise single-step ops, casual chat. Answer directly, no pipeline.
+
+## Activation threshold
+
+Use this skill if either condition is true:
+
+1. **One strong signal**: debugging/diagnosis, planning/architecture/design, decision support with tradeoffs, analyze source material then produce another artifact, user correction/recovery after a previous answer, high-risk domain requiring uncertainty control.
+
+2. **At least two weak signals**: vague goal, missing constraints, multi-step output, quality-sensitive wording, asks for recommendation, asks "how should I approach this", asks to improve/optimize something.
+
+## Priority relative to downstream skills
+
+Use collab-master before downstream skills only when the request requires deciding the workflow or shaping the input contract. Do not use it when a downstream skill can directly complete a precise one-step task.
+
+```
+"把这段话翻译成英文"           → translation skill directly
+"把这个 md 转成 html"          → document/conversion skill directly
+"分析这份报告并做成 8 页 PPT"   → collab-master first, then downstream PPT skill
+"这段代码报错，帮我定位并修复"  → collab-master first, then debug tools if needed
+```
+
+## Activation examples
+
+**Use:**
+- "这段代码线上偶发 500，日志没堆栈，帮我排查。"
+- "分析这个项目结构，给我一个重构方案。"
+- "读完这份文档，提炼要点并做成 PPT。"
+- "我不确定 A 和 B 怎么选，帮我从成本、风险、长期维护比较。"
+- "刚才不对，按我新的限制重新改。"
+- "帮我设计一个能稳定触发某个 skill 的 description。"
+
+**Skip:**
+- "这句话翻译成英文。"
+- "什么是递归？"
+- "今天几号？"
+- "帮我把这段话润色一下。"
 
 ## Rules (non-negotiable)
 
@@ -174,7 +217,11 @@ Conditional references (do not default-load): `references/07-quality-gate.md`, `
 6a  Ask only if A-level gaps remain (each question carries a default)
 6b  Optimize prompt only if user wants a reusable prompt
 6c  Answer by intent + audience; tier output (tier1/tier2/tier3) only when substantial
-6d  🛑 Composite only → confirm downstream payload structure → dispatch machinePayload to downstream, humanContent to user
+    当 TaskState 携带 roundtable 标记时，6c 从 chairOutput 取 selectedDirection+mergedInsights 为素材，
+    并把 disagreementResolution 标 unresolved/partial（缺省视为 unresolved）的分歧维度转写成"分水岭"
+    呈现给用户——绝不替用户裁未决分歧（见 references/roundtable/compose-from-chair.md）。
+    绝不暴露 chairOutput 字段名/角色名/数量。
+6d  🛑 Composite only → load `references/skill-registry.yaml` → match capabilities → present ranked candidates with one-line descriptions (user may override) → preload all candidates' input contracts while user decides → read selected input contract → adapt upstream material into that contract. `_shared/downstreamPayload.schema.json` is fallback for slides/diagram/document/code, not the universal interface. machinePayload goes downstream; humanContent goes to user.
 ```
 
 ### 5. Quality-gate (internal, binary, no score)
@@ -190,6 +237,8 @@ Conditional references (do not default-load): `references/07-quality-gate.md`, `
 Multi-fail priority: fatal > fingerprint > hard-to-vary > novelty > feeling.
 
 🛑 **StopLoss:** same gate fails 3× → ship minimum viable version with known gaps noted; stop looping.
+
+🔴 **Roundtable handoff (when active):** chairOutput.actualDisagreements 按 `disagreementResolution` 分流——标 `unresolved`/`partial`（缺省视为 unresolved）的维度 → 入 compose 6c，转写成"分水岭"呈现给用户（见 `references/roundtable/compose-from-chair.md`）；标 `resolved` 的维度与 rejectedIdeas → quality-gate 验证非空后丢弃，不入 compose。selectedDirection + mergedInsights → compose 6c 主素材（compose 负责改写为用户语言，不暴露 chair 内部术语/字段名）。unresolvedQuestions → 收成"动手前要定的事"(≤3 条) 或下一轮 6a 追问储备。
 
 ### 6. Execution-control (daemon, always on)
    - same strategy fails twice → switch strategy (concept-level, not reworded)
@@ -238,3 +287,4 @@ After the answer, run `09-memory.md`: 9a stable cross-task constants · 9b workf
 | 16 | 源材料已提供仍追问格式/范围/方法 | 附件/文本已给=任务可执行，format/scope 最多 B 级，不升 A |
 | 17 | roundtable chair 产出 rejectedIdeas 空 + disagreements 空 → 假圆桌 | chair 级硬闸: 三空判 FAIL，退回重跑或降级 STANDARD |
 | 18 | session 出现"作为 X 主义者/X 派"人格腔 | 词扫 FAIL；仅准"从 X 镜头看，真正的问题是…" |
+| 19 | chair 的 rejectedIdeas/disagreements/chairOutput 字段名泄露到用户面前 | quality-gate 丢弃 chair 内部工件；compose 6c 必须转写为自然语言，原始字段永不露面 |
