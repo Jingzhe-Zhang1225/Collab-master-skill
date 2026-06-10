@@ -1,0 +1,172 @@
+version: v1.6
+description: Runtime registry for compose 6d adaptive handoff. This is not a list of bundled dependencies; it is a matching table for available downstream skills.
+  Selection: within the same capability, candidates are sorted by defaultRank descending (10=preferred, 0=fallback-only).
+  User can override selection by naming a specific skill in conversation.
+  skillRef prefix: r0/ = user's global skills directory; r1/ = project-local skills; internal: = bundled reference.
+skills:
+  baoyu-slide-deck:
+    displayName: baoyu-slide-deck
+    skillRef: r0/baoyu-slide-deck/SKILL.md
+    capabilities:
+    - slides
+    - presentation
+    inputContract:
+      kind: native
+      format: outline-plus-style-instructions
+      requiredMaterials:
+      - slide outline
+      - visual style
+      - per-slide content
+      contractSource: skill
+    bestFor: Professional slide deck images from structured content.
+    userChoiceHint: Use when the user wants finished slide images.
+    defaultRank: 10
+  ljg-card:
+    displayName: ljg-card
+    skillRef: r1/ljg-card/SKILL.md
+    capabilities:
+    - infographic
+    - document
+    - social-card
+    inputContract:
+      kind: native
+      format: content-structure-plus-mold-flag
+      requiredMaterials:
+      - structured content (sections/claims/data)
+      - mold selection (-l/-i/-m/-v/-c/-w/-b)
+      - visual tone hint
+      contractSource: skill
+    bestFor: Content casting into PNG visuals with seven mold options (reading card, infograph, multi-card, editorial sketchnote, comic, whiteboard, big-fonts).
+    userChoiceHint: Use for polished visual output — pick a mold based on the format you want.
+    defaultRank: 9
+  html-ppt:
+    displayName: html-ppt
+    skillRef: r0/html-ppt-skill/SKILL.md
+    capabilities:
+    - slides
+    - html
+    - presentation
+    inputContract:
+      kind: native
+      format: markdown-outline-to-html-presentation
+      requiredMaterials:
+      - markdown outline
+      - theme/style direction
+      contractSource: skill
+    bestFor: Static HTML presentations with templates and animation.
+    userChoiceHint: Use when the user wants an editable HTML-style deck.
+    defaultRank: 8
+  ljg-present:
+    displayName: ljg-present
+    skillRef: r1/ljg-present/SKILL.md
+    capabilities:
+    - slides
+    - presentation
+    inputContract:
+      kind: native
+      format: markdown-outline-1-to-1
+      requiredMaterials:
+      - markdown outline
+      - theme flag
+      contractSource: skill
+    bestFor: Bold speech-style decks that preserve outline hierarchy.
+    userChoiceHint: Use when the user wants strong visual rhetoric or talk slides.
+    defaultRank: 7
+  baoyu-diagram:
+    displayName: baoyu-diagram
+    skillRef: r0/baoyu-diagram/SKILL.md
+    capabilities:
+    - diagram
+    - svg
+    - infographic
+    inputContract:
+      kind: downstreamPayload
+      payloadKind: diagram
+      format: diagramPayload
+      contractSource: _shared/downstreamPayload.schema.json
+    bestFor: Dark-themed SVG diagrams, architecture diagrams, flowcharts, and timelines.
+    userChoiceHint: Use when the result should be a single professional diagram.
+    defaultRank: 10
+  baoyu-infographic:
+    displayName: baoyu-infographic
+    skillRef: r0/baoyu-infographic/SKILL.md
+    capabilities:
+    - infographic
+    - social-card
+    - diagram
+    inputContract:
+      kind: native
+      format: content-plus-layout-style
+      requiredMaterials:
+      - core claims
+      - layout preference
+      - visual style
+      contractSource: skill
+    bestFor: Publication-ready infographics with explicit layout and style.
+    userChoiceHint: Use when the user wants one polished infographic.
+    defaultRank: 9
+  baoyu-xhs-images:
+    displayName: baoyu-xhs-images
+    skillRef: r0/baoyu-xhs-images/SKILL.md
+    capabilities:
+    - social-card
+    - infographic
+    - image-series
+    inputContract:
+      kind: native
+      format: card-series-brief
+      requiredMaterials:
+      - card count
+      - content chunks
+      - style/palette
+      contractSource: skill
+    bestFor: Multi-card social media image series.
+    userChoiceHint: Use when the user wants publishable social media cards.
+    defaultRank: 10
+  baoyu-markdown-to-html:
+    displayName: baoyu-markdown-to-html
+    skillRef: r0/baoyu-markdown-to-html/SKILL.md
+    capabilities:
+    - document
+    - html
+    - wechat-article
+    inputContract:
+      kind: native
+      format: markdown-document
+      requiredMaterials:
+      - markdown content
+      - theme
+      contractSource: skill
+    bestFor: Styled HTML or WeChat-compatible article rendering.
+    userChoiceHint: Use when the user wants formatted article output.
+    defaultRank: 9
+  baoyu-post-to-x:
+    displayName: baoyu-post-to-x
+    skillRef: r0/baoyu-post-to-x/SKILL.md
+    capabilities:
+    - post
+    - x
+    inputContract:
+      kind: native
+      format: post-text-plus-media
+      requiredMaterials:
+      - final post text
+      contractSource: skill
+    bestFor: Posting to X after human confirmation.
+    userChoiceHint: Use only when the user explicitly wants external posting.
+    defaultRank: 6
+  fallback-downstream-payload:
+    displayName: fallback downstreamPayload
+    skillRef: internal: _shared/downstreamPayload.schema.json (fixed-format handoff, not a named skill)
+    capabilities:
+    - slides
+    - diagram
+    - document
+    - code
+    inputContract:
+      kind: downstreamPayload
+      format: fixed-kind-payload
+      contractSource: _shared/downstreamPayload.schema.json
+    bestFor: Fallback when no specific downstream skill is selected or matched.
+    userChoiceHint: Internal scratch or handoff payload only — not shown to user as a candidate.
+    defaultRank: 1  # Lowest: never auto-selected; only used when no other skill matches

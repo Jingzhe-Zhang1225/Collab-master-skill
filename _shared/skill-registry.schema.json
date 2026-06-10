@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://collab-master-skill/_shared/skill-registry.schema.json",
+  "title": "collab-master-skill v1.6 skill registry",
+  "$comment": "Registry used by compose 6d adaptive handoff. It maps downstream capability tags to available skills and their parseable input contracts. It is a matching table, not an installer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "skills"],
+  "properties": {
+    "version": { "const": "v1.6" },
+    "description": { "type": "string" },
+    "skills": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/skillEntry"
+      }
+    }
+  },
+  "$defs": {
+    "capability": {
+      "enum": [
+        "slides",
+        "presentation",
+        "diagram",
+        "svg",
+        "infographic",
+        "social-card",
+        "image-series",
+        "document",
+        "html",
+        "wechat-article",
+        "code",
+        "post",
+        "x"
+      ]
+    },
+    "inputContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "format", "contractSource"],
+      "properties": {
+        "kind": {
+          "enum": ["native", "downstreamPayload", "markdown", "freeform"]
+        },
+        "payloadKind": {
+          "enum": ["slides", "diagram", "document", "code"]
+        },
+        "format": { "type": "string" },
+        "requiredMaterials": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contractSource": { "type": "string" }
+      }
+    },
+    "skillEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "displayName",
+        "skillRef",
+        "capabilities",
+        "inputContract",
+        "bestFor",
+        "defaultRank"
+      ],
+      "properties": {
+        "displayName": { "type": "string" },
+        "skillRef": { "type": "string" },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/capability" },
+          "uniqueItems": true
+        },
+        "inputContract": { "$ref": "#/$defs/inputContract" },
+        "bestFor": { "type": "string" },
+        "userChoiceHint": { "type": "string" },
+        "defaultRank": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    }
+  }
+}

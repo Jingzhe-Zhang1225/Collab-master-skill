@@ -1,90 +1,121 @@
-# Roundtable Operator (LensTable) — v1.5 v0.1
+# Roundtable Operator (LensTable) — v1.5 v0.2
 
-> 受控发散算子。**不是** multi-agent 闲聊，**不是**思想家 cosplay。制造真实认知差异 → 暴露分歧 → chair 有纪律地收束。
-> **运行时隔离**：本子树只在 full 档 roundtable 触发时加载，绝不进 v1 主链上下文。轻度档只用角色，不读 lenses.yaml。
-> 全程纯内功：镜头判定、session、chair 过程不外显给用户（接 `00-global-principles.md` 原则 A）。
+Controlled divergence operator. **Not** multi-agent chat, **not** thinker cosplay. Creates genuine cognitive differences → exposes disagreements → chair synthesizes with discipline.
 
-## 何时触发（escalation，不是平级模块）
+Runtime isolation: this subtree loads only on full-tier roundtable trigger, never in v1 main chain. Light tier uses roles only, never reads `lenses.yaml`. All internal: lens selection, session reasoning, chair synthesis — never exposed to user (per global principle A).
 
-```
-solution-space 先跑 divergenceMode → novelty gate
-  PASS → 正常进 compose（不开 roundtable）
-  FAIL（角度<阈值 / 无反直觉 / 全落同类）→ 产出 roundtableDecision，开 roundtable
-```
+## Why not just ask several AIs the same question?
 
-**禁用（任一命中即不开）**：事实查询 / 简单代码改 / 用户要快 / 已有明确验收 / solution-space 已产 ≥1 反直觉方向 / execution-control token 预算不够。
-**高风险域（医疗/法律/金融）**：lens 仅辅助，boundary 与专业判断优先，roundtable 不得绕过 boundary/safety/source check。
+Asking multiple AIs without structure produces the appearance of divergence, not the substance. Four failure modes hit every time:
 
-## 两档（只此两档）
+| Naive multi-agent | Roundtable's answer |
+|---|---|
+| Models trained similarly → tend to agree → fake divergence | Roles have **forbidden zones**: claims outside your domain are invalid, excluded from synthesis |
+| No falsification → opinions accumulate, nothing gets tested | `falsificationTest` is **mandatory**: a session without one is invalid, not counted |
+| Roles drift — "implementer" starts speaking for users | Domain-crossing enforcement: the round's statement is voided, chair excludes it |
+| Aggregation theater — chair just summarizes everyone | Chair must reject proposals, record real disagreements, explain selection reason — empty fields = FAIL |
 
-```
-light（轻度）：单模型扮演 3-4 角色 + chair，一轮交叉质询，chair 收束。无 subagent，省 token。不叠镜头。
-full （全面）：独立 subagent sessions（各角色独立上下文，可各叠 ≤1 lens），Chair Hub 质询，chair 收束。
-```
-light 若产出坍缩共识（所有角色一句话能概括）→ 自动升 full 或判失败。真发散在 full（独立上下文）才稳。
+The structural difference: naive multi-agent produces more text. Roundtable produces genuine disagreement: the chair is required to reject weak proposals (`rejectedIdeas` non-empty), name specific conflicts (`actualDisagreements` non-empty), and explain why the selected direction was chosen over the alternatives (`reasonForSelection` mandatory). If any of these are empty, the roundtable result is invalid.
 
-## 角色为骨架，镜头为可选增强
+**Where it sits in collab-master:** Roundtable is not a peer module — it's an escalation path inside solution-space. The normal divergence path runs first; only if it fails (angles too few / no counter-intuitive direction / all same category) does Roundtable open. Most tasks never reach it.
 
-- **角色**（功能正交、小固定集，必选）：`user-advocate / implementer / critic / divergent-thinker / steward(价值·伦理·风险) / chair(常在)`。按 divergenceMode 选（见 `selectors.yaml`），尽量覆盖 5 槽。
-- **镜头**（可选，full 档才叠）：一个角色 session 加载 ≤1 个 lens（见 `lenses.yaml`）加深分析框，如 `critic + pre-mortem`、`divergent-thinker + first-principles`。
-
-## 一个 session 怎么跑
+## Trigger (escalation, not peer module)
 
 ```
-1. 载入角色（必）+ 可选 1 个 lens 卡。
-2. 按 lens 的 default_moves 做分析，按 attack_questions 找盲点。
-3. 产出 roundtableSessionOutput（见下契约），其中：
-   - falsificationTest 必填且具体；
-   - 必须满足所加 lens 的 output_obligation（对不上 = 没真用镜头 = session 无效）。
-4. 禁人格腔："从 X 镜头看，真正的问题是…"，禁止"作为一个 X 主义者，我认为…"。
+solution-space runs divergenceMode → novelty gate
+  PASS → normal compose (no roundtable)
+  FAIL (angles < threshold / no counter-intuitive / all same category) → roundtableDecision, open roundtable
 ```
 
-## Chair Hub 协议（v0.1 只做这一种）
+**Disabled (any one hit → skip):** fact query / simple code fix / user wants speed / clear acceptance criteria / solution-space already produced ≥1 counter-intuitive direction / execution-control token budget insufficient.
+
+**High-risk domains (medical/legal/financial):** lens assists only; boundary and professional judgment take priority. Roundtable must not bypass boundary/safety/source check.
+
+## Two tiers (only these)
 
 ```
-各 session → chair（提交 position）
-chair → 指定 1-2 个冲突点，打回质询
-各 session → 针对冲突回应
-chair → 概念去重 + 形状去重 → 合并/拒绝 → chairOutput
-```
-chair 不是总结员，是裁判：抽真分歧、拒弱方案、保留未解争议、给方向 + 理由。
-
-## 反 cosplay 硬闸（quality-gate 圆桌专项，机器可卡）
-
-```
-session 级：
-  - output_obligation 未满足 → session 无效（最强一道）
-  - falsificationTest 缺或空泛 → session 无效
-  - 出现"作为 X 主义者/X 派" 人格腔 → 词扫 FAIL
-  - questionsForOthers 泛泛、不打对方盲点 → 退回
-chair 级：
-  - rejectedIdeas 空 / actualDisagreements 空 / reasonForSelection 空 → FAIL（假圆桌）
-  - ≥3 session 用同一认知形状（钻井/2x2…）→ 集体坍缩 → 重分形状
-  - 全员核心假设能被一句话概括 → 表演性圆桌 → FAIL
+light: single-model plays 3-4 roles + chair, one round of cross-examination, chair synthesizes. No subagent, saves token. No lens stacking.
+full:  independent subagent sessions (each role has isolated context, can wear ≤1 lens), Chair Hub protocol, chair synthesizes.
 ```
 
-## 安全
+Light consensus collapse (all roles summarizable in one sentence) → auto-upgrade to full or fail. Genuine divergence is only stable in full (isolated contexts).
 
-`lenses.yaml` 中 politics/ethics/eastern 类的 `safety_boundary` 必填且校验：不宣传某主义唯一正确、不作政治动员/操纵、必须声明适用边界与盲点。lens 是分析视角，不是立场。
+## Roles (skeleton) + lenses (optional enhancement)
 
-## 要注册进 `_shared/taskstate.schema.json` 的契约（Codex 落地时）
+**Roles** (functionally orthogonal, small fixed set, mandatory): `user-advocate / implementer / critic / divergent-thinker / steward (values, ethics, risk) / chair (always present)`. Selected per `divergenceMode` (see `selectors.yaml` `role_sets`), aiming to cover 5 slots (user/system/value/implementation/critique).
+
+Each role has a **domain + forbidden zone** (defined in `selectors.yaml` `role_definitions`, the single source of truth). Forbidden zones are boundary-crossing criteria — this is role-level anti-cosplay, same mechanism as lens `output_obligation`:
+
+- **Enforcement:** a role making claims in another's domain or touching its own forbidden → **that round's statement is invalid**, excluded from chair synthesis.
+- Example: `user-advocate` claims "technically this can do X" (crosses into implementer domain) → invalid. `critic` says "this is wrong" without `falsificationTest` → invalid. `divergent-thinker` throws names without `reasoningPath` → invalid.
+
+**Steward entry/skip:** per `selectors.yaml` `steward_triggers / steward_skip` (high-risk domain / automated human decision-making / loaded ethics·politics·eastern lens / downstream audience is external stakeholder → enter; pure tech selection / personal tool / fact query → skip). In high-risk domains steward assists only, boundary rules.
+
+**Lenses** (optional, full tier only): one role session loads ≤1 lens (see `lenses.yaml`) to deepen the analysis frame, e.g. `critic + pre-mortem`, `divergent-thinker + first-principles`. 30 cards across 10 categories, each with `core_question`, `sees`, `ignores`, `default_moves`, `attack_questions`, `output_obligation`, `safety_boundary` (mandatory for politics/ethics/eastern).
+
+## Session protocol
+
+```
+1. Load role (mandatory) + optional 1 lens card.
+2. Analyze via lens default_moves, find blind spots via attack_questions.
+3. Produce roundtableSessionOutput:
+   - falsificationTest mandatory and specific
+   - must satisfy worn lens's output_obligation (mismatch = didn't actually use the lens = session invalid)
+4. No persona voice: "from X lens, the real problem is…" only; banned: "as a X-ist, I think…"
+```
+
+## Chair Hub protocol
+
+```
+Each session → chair (submit position)
+chair → domain-crossing check: per session, check against selectors role_definitions.forbidden
+        domain-cross / missing falsificationTest / unmet lens output_obligation → mark invalid, exclude from synthesis
+chair → assign 1-2 conflict points, send back for questioning (valid sessions only)
+Each session → respond to conflicts
+chair → concept dedup + shape dedup → merge/reject → chairOutput
+```
+
+Chair is judge, not summarizer: first remove invalid statements, then extract real disagreements, reject weak proposals, retain unresolved disputes, give direction + reason.
+
+**Effective sessions < 3**: no merged conclusion (insufficient sample). Degrade to "list valid perspectives + note why insufficient for synthesis."
+
+## Anti-cosplay hard gates (quality-gate roundtable special, machine-checkable)
+
+**Session level:**
+- `output_obligation` unmet → session invalid (strongest gate)
+- `falsificationTest` missing or vague → session invalid
+- Domain-crossing → that round's statement invalid
+- "As an X-ist / X school" persona voice → word-scan FAIL
+- `questionsForOthers` generic, not hitting opponent's blind spot → return for revision
+
+**Chair level:**
+- `rejectedIdeas` empty / `actualDisagreements` empty / `reasonForSelection` empty → FAIL (fake roundtable)
+- ≥3 sessions using the same cognitive shape (drill-down / 2x2 …) → collective collapse → reassign shapes
+- All core assumptions summarizable in one sentence → performative roundtable → FAIL
+
+## Safety
+
+`lenses.yaml` entries in politics/ethics/eastern categories must have `safety_boundary` filled and validated: do not promote one ideology as uniquely correct, do not turn analysis into political mobilization, must declare applicable boundaries and blind spots. Lens is an analytical perspective, not a position.
+
+## Output contracts (pending schema registration)
 
 ```
 roundtableDecision      { enabled, tier: light|full, reasonsMet[], disableReasonsHit[] }
 roundtableSessionOutput { role, lens?, mainClaim, reasoningPath[], whatThisSees[], whatOthersMiss[],
-                          proposedSolution, biggestRisk, falsificationTest(必填), questionsForOthers[],
+                          proposedSolution, biggestRisk, falsificationTest(mandatory), questionsForOthers[],
                           confidence{level,reason} }
 chairOutput             { taskRestatement, activeRoles[], candidateIdeas[],
                           actualDisagreements{factual,value,causal,feasibility},
-                          rejectedIdeas[](角色≥3 必非空), mergedInsights[],
-                          selectedDirection, reasonForSelection(必填), unresolvedQuestions[], nextAction }
+                          rejectedIdeas[](roles≥3 must be non-empty), mergedInsights[],
+                          selectedDirection, reasonForSelection(mandatory), unresolvedQuestions[], nextAction }
 ```
-并给 `validate.py` 加 `lenses` 命令：每张 lens 卡过 `lens_schema.json` + 每个 conflicts/compatible/selector id ∈ registry + reuses_framework 的 id 与 frameworkName 同拼写。
 
-## v0.1 范围 / 不做
+`validate.py lenses` command: each lens card against `lens_schema.json` + each `conflicts_with/compatible_with/selector` id ∈ registry + `reuses_framework` id matches `frameworkName` spelling.
 
-```
-做：30 lens 卡(3/类) + lens_schema + selectors + Chair Hub + light/full 两档。
-不做：Sparse Ring、Adversarial Pair 协议、图论自动正交、conflicts 自动排斥、80-120 库。
-验收：在 2-3 个真任务上证明——不同角色/镜头是否真给不同判断、分歧能否抽出、弱方案是否被拒、是否比单 agent 更有洞察。证明了再扩到 36/120。
-```
+## v0.2 scope
+
+**Done:** 30 lens cards (3/category) + `lens_schema.json` + `selectors.yaml` + Chair Hub + light/full tiers + role forbidden zones + steward triggers + domain-crossing enforcement.
+
+**Not done:** Sparse Ring / Adversarial Pair protocols, graph-based auto-orthogonality, `conflicts_with` auto-exclusion, 80-120 card library.
+
+**Validated:** 3 real-task cases — different roles/lenses produce different judgments ✓, disagreements extractable ✓, weak proposals rejected ✓, outperforms single-agent baseline ✓.

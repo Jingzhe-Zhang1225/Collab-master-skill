@@ -1,0 +1,1883 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://collab-master-skill/dev-skills/_shared/taskstate.schema.json",
+  "title": "collab-master-skill TaskState 契约（唯一机器真源）",
+  "$comment": "治理：本文件是 enum 和字段契约的唯一机器真源。00-global-principles.md 只放人话解释，不得另列一套 enum 值。要加新值/新字段：先改本文件 → 用户签字 → 三方(Claude/Codex/DeepSeek)重新读。任何 skill / mock 不得就地引入未登记的值或字段。 用法： 闸A(Codex skill 全量输出) → 校验 #/$defs/intakeOutput | boundaryOutput | strategyOutput（strict，必含全字段）。 闸B(DeepSeek mock 答案卷，部分断言) → mock 文件是 mockCase 数组，逐条校验 #/$defs/mockCase（expected 用 *Assertion，允许只写关心的字段，但写出来的值/字段必须合法）。 全量快照 → #/$defs/taskState。 语言规则：所有 enum / 字段名 / JSON key 用 ASCII；自由文本(knownContext/truthConstraints/...)跟随用户语言，schema 不校验语言只校验结构。",
+  "$defs": {
+    "intent": {
+      "$comment": "用户想达成的『结果』，封闭 7 个。下游 mode-router 按它路由：report→EXECUTIVE / learn→COACH / create→CREATIVE / debug→DEBUG。write/plan/advise/fact 不是 intent，是 taskType。",
+      "enum": [
+        "learn",
+        "execute",
+        "decide",
+        "report",
+        "create",
+        "debug",
+        "explore"
+      ]
+    },
+    "taskTypeName": {
+      "$comment": "认知工作的『性质』。领域(medical/legal/...)不在这里，放 domains。不许斜杠拼(medical/advise ✗)。",
+      "enum": [
+        "fact-check",
+        "explain",
+        "code",
+        "debug",
+        "analyze",
+        "summarize",
+        "translate",
+        "rewrite",
+        "write",
+        "plan",
+        "design",
+        "ideate",
+        "select",
+        "advise",
+        "present",
+        "process-file",
+        "calculate",
+        "product-select",
+        "language-analyze",
+        "system-operation"
+      ]
+    },
+    "domain": {
+      "$comment": "领域标签，不是 taskType。intake 可标；是否升 risk 由 boundary 判。",
+      "enum": [
+        "medical",
+        "legal",
+        "financial",
+        "academic",
+        "safety",
+        "privacy"
+      ]
+    },
+    "uncertaintyLevel": {
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "uncertaintyAction": {
+      "enum": [
+        "resolve_now",
+        "assume_and_mark",
+        "defer"
+      ]
+    },
+    "taskTypeRole": {
+      "enum": [
+        "primary",
+        "secondary"
+      ]
+    },
+    "riskLevel": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "complexityTier": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "workMode": {
+      "enum": [
+        "FAST",
+        "STANDARD",
+        "DEEP",
+        "COACH",
+        "EXECUTIVE",
+        "CREATIVE",
+        "DEBUG"
+      ]
+    },
+    "frameworkRole": {
+      "enum": [
+        "primary",
+        "secondary",
+        "check"
+      ]
+    },
+    "frameworkName": {
+      "$comment": "受控框架名（唯一真源）。全部小写连字符（缩略词也小写：mece/toc/pdca/ooda/jtbd），与 lens id 同一约定，便于 roundtable 镜头 reuses_framework 直接对齐。后续模块要新框架按治理先加到这里。",
+      "enum": [
+        "direct-check",
+        "mece",
+        "impact-effort",
+        "80-20",
+        "first-principles",
+        "example-ladder",
+        "systems-thinking",
+        "pre-mortem",
+        "divergent-convergent",
+        "reverse-engineering",
+        "5-whys",
+        "hypothesis-test",
+        "toc",
+        "pdca",
+        "ooda",
+        "jtbd"
+      ]
+    },
+    "divergenceMode": {
+      "$comment": "solution-space 发散模式。按 primary taskType + workMode 动态选。",
+      "enum": [
+        "none",
+        "creative",
+        "debug",
+        "strategy",
+        "design",
+        "concept",
+        "essence",
+        "decision",
+        "light"
+      ]
+    },
+    "matchLevel": {
+      "$comment": "solution-space 选项匹配度等级(goalFit/feasibility/differentiation/riskControl)。",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "unknown"
+      ]
+    },
+    "quadrant": {
+      "$comment": "mock 象限：T1=只绊intake / T2=只绊boundary / TB=都绊 / N=负对照(不该报警)。",
+      "enum": [
+        "T1",
+        "T2",
+        "TB",
+        "N"
+      ]
+    },
+    "taskTypeObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "role"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/taskTypeName"
+        },
+        "role": {
+          "$ref": "#/$defs/taskTypeRole"
+        }
+      }
+    },
+    "uncertainPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content",
+        "level",
+        "reason",
+        "action"
+      ],
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "level": {
+          "$ref": "#/$defs/uncertaintyLevel"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "action": {
+          "$ref": "#/$defs/uncertaintyAction"
+        }
+      }
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content",
+        "authority"
+      ],
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "authority": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "date": {
+          "type": "string"
+        }
+      }
+    },
+    "sourceConflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "sourceA",
+        "sourceB",
+        "resolution"
+      ],
+      "properties": {
+        "claim": {
+          "type": "string"
+        },
+        "sourceA": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "sourceB": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "resolution": {
+          "enum": [
+            "prefer_sourceA",
+            "prefer_sourceB",
+            "present_both",
+            "cannot_resolve"
+          ]
+        }
+      }
+    },
+    "audienceDimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explainDepth",
+        "technicalDetail",
+        "actionOrientation",
+        "tone",
+        "formality",
+        "visualNeed",
+        "backgroundAssumed"
+      ],
+      "properties": {
+        "explainDepth": {
+          "enum": [
+            "brief",
+            "normal",
+            "deep"
+          ]
+        },
+        "technicalDetail": {
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "actionOrientation": {
+          "enum": [
+            "learn",
+            "execute",
+            "decide",
+            "report",
+            "create"
+          ]
+        },
+        "tone": {
+          "enum": [
+            "warm",
+            "neutral",
+            "direct",
+            "inspirational"
+          ]
+        },
+        "formality": {
+          "enum": [
+            "casual",
+            "neutral",
+            "professional"
+          ]
+        },
+        "visualNeed": {
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "backgroundAssumed": {
+          "enum": [
+            "novice",
+            "learner",
+            "practitioner",
+            "domain-expert"
+          ]
+        }
+      }
+    },
+    "audienceProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimensions"
+      ],
+      "properties": {
+        "roleHint": {
+          "type": "string"
+        },
+        "dimensions": {
+          "$ref": "#/$defs/audienceDimensions"
+        }
+      }
+    },
+    "frameworkSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "role",
+        "instructions"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/frameworkName"
+        },
+        "role": {
+          "$ref": "#/$defs/frameworkRole"
+        },
+        "instructions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "intakeFields": {
+      "$comment": "intake 写入的字段。intakeOutput=strict(全字段必填，闸A用)；intakeAssertion=loose(mock 部分断言，闸B用)。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "$ref": "#/$defs/intent"
+        },
+        "taskTypes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/taskTypeObject"
+          }
+        },
+        "knownContext": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missingContext": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uncertainPoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uncertainPoint"
+          }
+        },
+        "intentShiftDetected": {
+          "type": "boolean"
+        },
+        "clarificationNeeded": {
+          "type": "boolean"
+        },
+        "composite": {
+          "type": "boolean"
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/domain"
+          }
+        }
+      }
+    },
+    "intakeOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/intakeFields"
+        },
+        {
+          "required": [
+            "intent",
+            "taskTypes",
+            "knownContext",
+            "missingContext",
+            "assumptions",
+            "uncertainPoints",
+            "intentShiftDetected",
+            "clarificationNeeded",
+            "composite",
+            "domains"
+          ]
+        }
+      ]
+    },
+    "intakeAssertion": {
+      "$ref": "#/$defs/intakeFields"
+    },
+    "boundaryFields": {
+      "$comment": "boundary 写入的字段。命名：intake 用 clarificationNeeded(解析阶段)，boundary 用 needClarification(结合风险/来源/工具后的最终门闸)，二者并存。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canAnswerDirectly": {
+          "type": "boolean"
+        },
+        "needClarification": {
+          "type": "boolean"
+        },
+        "needTool": {
+          "type": "boolean"
+        },
+        "needWebCheck": {
+          "type": "boolean"
+        },
+        "needSourceCheck": {
+          "type": "boolean"
+        },
+        "riskLevel": {
+          "$ref": "#/$defs/riskLevel"
+        },
+        "complexityTier": {
+          "$ref": "#/$defs/complexityTier"
+        },
+        "truthConstraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uncertainClaims": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourceConflicts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceConflict"
+          }
+        },
+        "responseConstraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "structuredConstraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/structuredConstraint"
+          }
+        }
+      }
+    },
+    "boundaryOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/boundaryFields"
+        },
+        {
+          "required": [
+            "canAnswerDirectly",
+            "needClarification",
+            "needTool",
+            "needWebCheck",
+            "needSourceCheck",
+            "riskLevel",
+            "complexityTier",
+            "truthConstraints",
+            "uncertainClaims",
+            "sourceConflicts",
+            "responseConstraints"
+          ]
+        }
+      ]
+    },
+    "boundaryAssertion": {
+      "$ref": "#/$defs/boundaryFields"
+    },
+    "strategyFields": {
+      "$comment": "strategy(=audience+mode-router) 写入的字段。下游 6c 继承。前瞻登记：strategy 开发时即按此契约写。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "successCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "audienceProfile": {
+          "$ref": "#/$defs/audienceProfile"
+        },
+        "workMode": {
+          "$ref": "#/$defs/workMode"
+        },
+        "reasoningFrameworks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/frameworkSelection"
+          }
+        }
+      }
+    },
+    "strategyOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/strategyFields"
+        },
+        {
+          "required": [
+            "successCriteria",
+            "audienceProfile",
+            "workMode",
+            "reasoningFrameworks"
+          ]
+        }
+      ]
+    },
+    "strategyAssertion": {
+      "$ref": "#/$defs/strategyFields"
+    },
+    "optionMatchNotes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "goalFit": {
+          "$ref": "#/$defs/matchLevel"
+        },
+        "feasibility": {
+          "$ref": "#/$defs/matchLevel"
+        },
+        "differentiation": {
+          "$ref": "#/$defs/matchLevel"
+        },
+        "riskControl": {
+          "$ref": "#/$defs/matchLevel"
+        }
+      }
+    },
+    "optionSpaceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "option": {
+          "type": "string"
+        },
+        "angle": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "matchNotes": {
+          "$ref": "#/$defs/optionMatchNotes"
+        },
+        "truthConstraintCheck": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excluded": {
+          "type": "boolean"
+        },
+        "excludeReason": {
+          "type": "string"
+        }
+      }
+    },
+    "divergeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "anglesCovered": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hasCounterIntuitiveOption": {
+          "type": "boolean"
+        },
+        "stoppedBecause": {
+          "type": "string"
+        }
+      }
+    },
+    "convergeResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "top3": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "runnersUp": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "uncertaintyPriorityMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "A": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "B": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "C": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "solutionSpaceFields": {
+      "$comment": "solution-space 写入的字段。shouldRun: 是否需要发散；skipReason: 跳过时必填原因。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shouldRun": {
+          "type": "boolean"
+        },
+        "skipReason": {
+          "type": "string"
+        },
+        "divergenceMode": {
+          "$ref": "#/$defs/divergenceMode"
+        },
+        "optionSpace": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/optionSpaceItem"
+          }
+        },
+        "creativeAngles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "analogyFrames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "divergeResult": {
+          "$ref": "#/$defs/divergeResult"
+        },
+        "convergeResult": {
+          "$ref": "#/$defs/convergeResult"
+        },
+        "uncertaintyPriority": {
+          "$ref": "#/$defs/uncertaintyPriorityMap"
+        },
+        "recommendedFocus": {
+          "type": "string"
+        },
+        "deferredDetails": {
+          "type": "array"
+        },
+        "roundtableDecision": {
+          "$ref": "#/$defs/roundtableDecision"
+        }
+      }
+    },
+    "solutionSpaceOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/solutionSpaceFields"
+        },
+        {
+          "required": [
+            "shouldRun",
+            "skipReason",
+            "divergenceMode",
+            "optionSpace",
+            "creativeAngles",
+            "divergeResult",
+            "convergeResult",
+            "uncertaintyPriority",
+            "recommendedFocus",
+            "deferredDetails"
+          ]
+        }
+      ]
+    },
+    "solutionSpaceAssertion": {
+      "$ref": "#/$defs/solutionSpaceFields"
+    },
+    "structuredConstraintStatus": {
+      "enum": [
+        "active",
+        "deprecated"
+      ]
+    },
+    "structuredConstraint": {
+      "$comment": "By boundary: structured form of boundary.truthConstraints/responseConstraints, for execution-control anti-decay verification. type=forbidden/required/conditional. NOT the same as memory.workflowRecord.structuralDefaults (those are workflow structural defaults injected into strategy/compose, not verification constraints).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "description",
+        "source"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "forbidden",
+            "required",
+            "conditional"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "$comment": "来自哪轮对话，如 round-3 / user-msg / boundary"
+        },
+        "condition": {
+          "type": "string",
+          "$comment": "仅 type=conditional：触发条件"
+        },
+        "action": {
+          "enum": [
+            "allow",
+            "prohibit"
+          ],
+          "$comment": "仅 type=conditional：条件满足时的动作"
+        },
+        "status": {
+          "$ref": "#/$defs/structuredConstraintStatus"
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "conditional"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "condition",
+          "action"
+        ]
+      }
+    },
+    "taskState": {
+      "$comment": "Full snapshot passed between skills. Raw input at top level; each module's output nested under its module name, using *Fields (loose) since a mid-pipeline snapshot may have only run some modules.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "userMessage": {
+          "type": "string"
+        },
+        "conversationContext": {
+          "type": "string"
+        },
+        "userProfile": {
+          "type": "object"
+        },
+        "availableTools": {
+          "type": "array"
+        },
+        "previousTaskState": {
+          "type": "object"
+        },
+        "memoryInjected": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memoryEntry"
+          }
+        },
+        "intake": {
+          "$ref": "#/$defs/intakeFields"
+        },
+        "boundary": {
+          "$ref": "#/$defs/boundaryFields"
+        },
+        "strategy": {
+          "$ref": "#/$defs/strategyFields"
+        },
+        "solutionSpace": {
+          "$ref": "#/$defs/solutionSpaceFields"
+        },
+        "compose": {
+          "$ref": "#/$defs/composeFields"
+        },
+        "qualityGate": {
+          "$ref": "#/$defs/qualityGateFields"
+        },
+        "executionControl": {
+          "$ref": "#/$defs/executionControlFields"
+        },
+        "memory": {
+          "$ref": "#/$defs/memoryFields"
+        },
+        "structuredConstraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/structuredConstraint"
+          }
+        },
+        "roundtable": {
+          "$ref": "#/$defs/roundtable"
+        }
+      }
+    },
+    "mockCase": {
+      "$comment": "DeepSeek 写的一条 mock = 输入 + 象限 + 各模块的期望断言(部分字段)。expected 用 *Assertion：可只写关心的字段，但写出的值/字段必须合法。这是闸B：mock 答案卷先过校验，才有资格判 skill。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "quadrant",
+        "input",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "quadrant": {
+          "$ref": "#/$defs/quadrant"
+        },
+        "note": {
+          "type": "string"
+        },
+        "input": {
+          "$comment": "被测 skill 的原始输入；形状随模块变，故不严格约束。",
+          "type": "object"
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "intake": {
+              "$ref": "#/$defs/intakeAssertion"
+            },
+            "boundary": {
+              "$ref": "#/$defs/boundaryAssertion"
+            },
+            "strategy": {
+              "$ref": "#/$defs/strategyAssertion"
+            },
+            "solutionSpace": {
+              "$ref": "#/$defs/solutionSpaceAssertion"
+            },
+            "compose": {
+              "$ref": "#/$defs/composeAssertion"
+            },
+            "qualityGate": {
+              "$ref": "#/$defs/qualityGateAssertion"
+            },
+            "executionControl": {
+              "$ref": "#/$defs/executionControlAssertion"
+            },
+            "memory": {
+              "$ref": "#/$defs/memoryAssertion"
+            },
+            "roundtable": {
+              "$ref": "#/$defs/roundtableAssertion"
+            }
+          }
+        }
+      }
+    },
+    "mockFile": {
+      "$comment": "整份 JSON 化的 mock 语料 = mockCase 数组。",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/mockCase"
+      }
+    },
+    "memoryCategory": {
+      "enum": [
+        "thinking_mode",
+        "language_habit",
+        "collaboration_signal"
+      ]
+    },
+    "memoryConfidence": {
+      "enum": [
+        "explicit",
+        "inferred"
+      ]
+    },
+    "memoryScope": {
+      "enum": [
+        "cross_task",
+        "task_specific"
+      ]
+    },
+    "anomalyType": {
+      "enum": [
+        "out_of_domain",
+        "first_occurrence",
+        "one_off"
+      ]
+    },
+    "taskBoundarySignal": {
+      "enum": [
+        "intentShift",
+        "composite_delivery",
+        "explicit_switch",
+        "implicit_drift"
+      ]
+    },
+    "moduleRef": {
+      "enum": [
+        "intake",
+        "boundary",
+        "strategy",
+        "solution-space",
+        "compose",
+        "quality-gate",
+        "execution-control",
+        "memory",
+        "6a",
+        "6b",
+        "6c",
+        "6d"
+      ]
+    },
+    "failedGateType": {
+      "enum": [
+        "redline",
+        "fingerprint",
+        "hard-to-vary",
+        "novelty",
+        "feeling"
+      ]
+    },
+    "revisionTarget": {
+      "enum": [
+        "boundary-truth",
+        "interaction-compose(6a)",
+        "interaction-compose(6c)",
+        "solution-space",
+        "execution-control",
+        "intake",
+        "strategy",
+        "minimal-usable-version"
+      ]
+    },
+    "loopType": {
+      "enum": [
+        "same_or_near_same_solution_twice",
+        "low_value_detail_repeated",
+        "empty_self_check",
+        "failed_but_no_new_hypothesis",
+        "concept_level_repeat",
+        "same_quality_gate_feedback_three_rounds",
+        "c_level_detail_loop",
+        "output_bloat",
+        "analysis_paralysis"
+      ]
+    },
+    "pressureLevel": {
+      "enum": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ]
+    },
+    "syncTrigger": {
+      "enum": [
+        "major_generation",
+        "irreversible_operation",
+        "three_progress_rounds",
+        "two_consecutive_failures",
+        "user_progress_request",
+        "quality_gate_feeling_fail_x2"
+      ]
+    },
+    "memoryStructuralDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "explainDepth": {
+          "enum": [
+            "brief",
+            "normal",
+            "deep",
+            null
+          ]
+        },
+        "tone": {
+          "enum": [
+            "warm",
+            "neutral",
+            "direct",
+            "inspirational",
+            null
+          ]
+        },
+        "sectionOrder": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lengthLimit": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ]
+        },
+        "skipSections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "titleStyle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outputFormat": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "memoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "observation",
+        "confidence",
+        "scope"
+      ],
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/memoryCategory"
+        },
+        "observation": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "userQuote": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string"
+            }
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/memoryConfidence"
+        },
+        "scope": {
+          "$ref": "#/$defs/memoryScope"
+        }
+      }
+    },
+    "workflowRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detected"
+      ],
+      "properties": {
+        "detected": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "triggerKeywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "matchedPattern": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "intent": {
+              "$ref": "#/$defs/intent"
+            },
+            "taskTypes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/taskTypeName"
+              }
+            }
+          }
+        },
+        "structuralDefaults": {
+          "$ref": "#/$defs/memoryStructuralDefaults"
+        },
+        "correctionDimension": {
+          "type": "string"
+        },
+        "occurrenceCount": {
+          "type": "integer"
+        }
+      }
+    },
+    "anomalyRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "detected"
+      ],
+      "properties": {
+        "detected": {
+          "type": "boolean"
+        },
+        "type": {
+          "$ref": "#/$defs/anomalyType"
+        },
+        "domainGap": {
+          "type": "string"
+        },
+        "keptCategories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memoryCategory"
+          }
+        },
+        "excludedCategories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memoryCategory"
+          }
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "memoryFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memoryEntry": {
+          "$ref": "#/$defs/memoryEntry"
+        },
+        "workflowRecord": {
+          "$ref": "#/$defs/workflowRecord"
+        },
+        "anomalyRecord": {
+          "$ref": "#/$defs/anomalyRecord"
+        }
+      }
+    },
+    "memoryOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/memoryFields"
+        },
+        {
+          "required": [
+            "workflowRecord",
+            "anomalyRecord"
+          ]
+        }
+      ]
+    },
+    "memoryAssertion": {
+      "$ref": "#/$defs/memoryFields"
+    },
+    "qualityGateFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "failedGate": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/failedGateType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "redlineViolations": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 22
+          }
+        },
+        "revisionTarget": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/revisionTarget"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revisionNotes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stopLoss": {
+          "type": "boolean"
+        },
+        "gates": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fatal": {
+              "type": "object"
+            },
+            "quality": {
+              "type": "object"
+            },
+            "feeling": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "qualityGateOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/qualityGateFields"
+        },
+        {
+          "required": [
+            "passed",
+            "redlineViolations",
+            "stopLoss",
+            "gates"
+          ]
+        }
+      ]
+    },
+    "qualityGateAssertion": {
+      "$ref": "#/$defs/qualityGateFields"
+    },
+    "executionControlFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "route": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/moduleRef"
+          }
+        },
+        "skip": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/moduleRef"
+          }
+        },
+        "workModeOverride": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/workMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "upgrade": {
+          "type": "boolean"
+        },
+        "humanCheckRequired": {
+          "type": "boolean"
+        },
+        "downgradeForbidden": {
+          "type": "boolean"
+        },
+        "loopDetected": {
+          "type": "boolean"
+        },
+        "loopType": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/loopType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shouldSyncUser": {
+          "type": "boolean"
+        },
+        "syncTrigger": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/syncTrigger"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "syncMessage": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requiresConfirmation": {
+          "type": "boolean"
+        },
+        "pressureLevel": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/pressureLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "escalationAction": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stopLoss": {
+          "type": "boolean"
+        },
+        "minimumViableOutputRequired": {
+          "type": "boolean"
+        },
+        "silentViolationDetected": {
+          "type": "boolean"
+        },
+        "violationLog": {
+          "type": "array"
+        },
+        "budgetTier": {
+          "$ref": "#/$defs/budgetTier"
+        },
+        "emergencyLanding": {
+          "type": "boolean"
+        },
+        "capabilityLoss": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "checkpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "written": {
+              "type": "boolean"
+            },
+            "path": {
+              "type": "string"
+            },
+            "lastCompletedModule": {
+              "$ref": "#/$defs/moduleRef"
+            }
+          }
+        },
+        "sideEffectsDone": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resumedFrom": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "executionControlOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/executionControlFields"
+        },
+        {
+          "required": [
+            "route",
+            "skip",
+            "loopDetected",
+            "shouldSyncUser",
+            "stopLoss"
+          ]
+        }
+      ]
+    },
+    "executionControlAssertion": {
+      "$ref": "#/$defs/executionControlFields"
+    },
+    "composeFields": {
+      "$comment": "compose structural envelope; tier1/tier3 prose is not schema-validated (quality-gate + human review).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hasQuestions": {
+          "type": "boolean"
+        },
+        "questions": {
+          "type": "array"
+        },
+        "hasPromptOptimization": {
+          "type": "boolean"
+        },
+        "optimizedPrompt": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "draftOutput": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tier1": {
+              "type": "string"
+            },
+            "tier2": {
+              "type": "array"
+            },
+            "tier3": {
+              "type": "string"
+            }
+          }
+        },
+        "visualSynthesis": {
+          "type": [
+            "object",
+            "string",
+            "null"
+          ]
+        },
+        "machinePayload": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "appliedAssumptions": {
+          "type": "array"
+        },
+        "unsafeClaimsMarked": {
+          "type": "array"
+        }
+      }
+    },
+    "composeOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/composeFields"
+        },
+        {
+          "required": [
+            "hasQuestions",
+            "draftOutput"
+          ]
+        }
+      ]
+    },
+    "composeAssertion": {
+      "$ref": "#/$defs/composeFields"
+    },
+    "budgetTier": {
+      "$comment": "execution-control 资源三档：normal / converge(停发散) / land(紧急着陆)。",
+      "enum": [
+        "normal",
+        "converge",
+        "land"
+      ]
+    },
+    "roundtableTier": {
+      "enum": [
+        "light",
+        "full"
+      ]
+    },
+    "roundtableRole": {
+      "enum": [
+        "user-advocate",
+        "implementer",
+        "critic",
+        "divergent-thinker",
+        "steward",
+        "chair"
+      ]
+    },
+    "roundtableDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "tier": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/roundtableTier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonsMet": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "disableReasonsHit": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "roundtableSessionFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "lens 是字符串；其值 ∈ lenses.yaml 由 validate.py lenses 校验(不进本 schema，避免双源)。",
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/roundtableRole"
+        },
+        "lens": {
+          "type": "string"
+        },
+        "mainClaim": {
+          "type": "string"
+        },
+        "reasoningPath": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "whatThisSees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "whatOthersMiss": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "proposedSolution": {
+          "type": "string"
+        },
+        "biggestRisk": {
+          "type": "string"
+        },
+        "falsificationTest": {
+          "type": "string"
+        },
+        "questionsForOthers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "roundtableSessionOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/roundtableSessionFields"
+        },
+        {
+          "required": [
+            "role",
+            "mainClaim",
+            "falsificationTest"
+          ]
+        }
+      ]
+    },
+    "roundtableSessionAssertion": {
+      "$ref": "#/$defs/roundtableSessionFields"
+    },
+    "chairCandidateIdea": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "idea": {
+          "type": "string"
+        },
+        "sourceRole": {
+          "$ref": "#/$defs/roundtableRole"
+        },
+        "sourceLens": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "risk": {
+          "type": "string"
+        }
+      }
+    },
+    "chairRejectedIdea": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "idea": {
+          "type": "string"
+        },
+        "rejectedBecause": {
+          "type": "string"
+        }
+      }
+    },
+    "chairFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "taskRestatement": {
+          "type": "string"
+        },
+        "activeRoles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/roundtableRole"
+          }
+        },
+        "candidateIdeas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/chairCandidateIdea"
+          }
+        },
+        "actualDisagreements": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "factual": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "causal": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "feasibility": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "disagreementResolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Per-dimension resolution status of the actualDisagreements entries. A dimension marked 'unresolved' or 'partial' MUST be surfaced to the user by compose 6c as a 分水岭 (see references/roundtable/compose-from-chair.md); a dimension marked 'resolved' may be discarded with rejectedIdeas. A missing/absent dimension defaults to 'unresolved' (conservative: preserve rather than flatten).",
+          "properties": {
+            "factual": { "enum": ["resolved", "unresolved", "partial"] },
+            "value": { "enum": ["resolved", "unresolved", "partial"] },
+            "causal": { "enum": ["resolved", "unresolved", "partial"] },
+            "feasibility": { "enum": ["resolved", "unresolved", "partial"] }
+          }
+        },
+        "rejectedIdeas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/chairRejectedIdea"
+          }
+        },
+        "mergedInsights": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selectedDirection": {
+          "type": "string"
+        },
+        "reasonForSelection": {
+          "type": "string"
+        },
+        "unresolvedQuestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nextAction": {
+          "type": "string"
+        }
+      }
+    },
+    "chairOutput": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/chairFields"
+        },
+        {
+          "required": [
+            "selectedDirection",
+            "reasonForSelection"
+          ]
+        }
+      ]
+    },
+    "chairAssertion": {
+      "$ref": "#/$defs/chairFields"
+    },
+    "roundtable": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/roundtableDecision"
+        },
+        "sessions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/roundtableSessionOutput"
+          }
+        },
+        "chair": {
+          "$ref": "#/$defs/chairOutput"
+        }
+      }
+    },
+    "roundtableAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/roundtableDecision"
+        },
+        "sessions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/roundtableSessionAssertion"
+          }
+        },
+        "chair": {
+          "$ref": "#/$defs/chairAssertion"
+        }
+      }
+    }
+  }
+}

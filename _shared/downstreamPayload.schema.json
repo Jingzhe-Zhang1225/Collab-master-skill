@@ -1,0 +1,453 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://collab-master-skill/_shared/downstreamPayload.schema.json",
+  "title": "compose 6d fallback downstream payload contract (v1.6)",
+  "$comment": "v1.6 adaptive handoff: this schema is a fallback/reference format for four fixed payload kinds (slides/diagram/document/code). It is not the universal downstream interface. The primary path is registry -> selected downstream input contract -> adapted payload. Use validate.py downstream <payload.json> only when the selected contract is this fallback schema.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/slidesPayload"
+    },
+    {
+      "$ref": "#/$defs/diagramPayload"
+    },
+    {
+      "$ref": "#/$defs/documentPayload"
+    },
+    {
+      "$ref": "#/$defs/codePayload"
+    }
+  ],
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "四种 payload 共用的元数据。自由文本跟随用户语言；kind 等 enum 用 ASCII。",
+      "properties": {
+        "theme": {
+          "type": "string"
+        },
+        "visualTone": {
+          "type": "string"
+        },
+        "targetAudience": {
+          "type": "string"
+        },
+        "sourceTaskId": {
+          "type": "string"
+        }
+      }
+    },
+    "downstreamConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "锁死下游自由发挥的执行红线（可选携带）。",
+      "properties": {
+        "forbidden": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hardLimits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mustInclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "truthConstraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "qualityCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "slide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slideId",
+        "layout",
+        "corePunchline"
+      ],
+      "properties": {
+        "slideId": {
+          "type": "string"
+        },
+        "layout": {
+          "enum": [
+            "title-center",
+            "split-2col",
+            "big-quote",
+            "image-full",
+            "bullet-list"
+          ]
+        },
+        "corePunchline": {
+          "type": "string",
+          "$comment": "本页一句话核心，观众只看这一句也够"
+        },
+        "contentBullets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "visualPrompt": {
+          "type": "string"
+        },
+        "speakerNotes": {
+          "type": "string",
+          "$comment": "复杂推演放这里，不上屏"
+        },
+        "transitionHint": {
+          "type": "string"
+        }
+      }
+    },
+    "slidesPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "meta",
+        "slides"
+      ],
+      "properties": {
+        "kind": {
+          "const": "slides"
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        },
+        "downstreamConstraints": {
+          "$ref": "#/$defs/downstreamConstraints"
+        },
+        "narrativeArc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "openingHook": {
+              "type": "string"
+            },
+            "tensionBuild": {
+              "type": "string"
+            },
+            "climax": {
+              "type": "string"
+            },
+            "resolution": {
+              "type": "string"
+            }
+          }
+        },
+        "slides": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/slide"
+          }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "positionHint": {
+          "type": "string"
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "->",
+            "<->",
+            "--"
+          ]
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "target",
+        "note"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "highlight",
+            "redline"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "diagramPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "type",
+        "meta",
+        "nodes"
+      ],
+      "properties": {
+        "kind": {
+          "const": "diagram"
+        },
+        "type": {
+          "enum": [
+            "flowchart",
+            "architecture",
+            "timeline",
+            "comparison",
+            "hierarchy"
+          ]
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        },
+        "downstreamConstraints": {
+          "$ref": "#/$defs/downstreamConstraints"
+        },
+        "title": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edge"
+          }
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/annotation"
+          }
+        }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "coreClaim"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "opening",
+            "argument",
+            "evidence",
+            "counterpoint",
+            "conclusion"
+          ]
+        },
+        "coreClaim": {
+          "type": "string"
+        },
+        "keyEvidence": {
+          "type": "string"
+        },
+        "reasoningSteps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "formalization": {
+          "type": "string",
+          "$comment": "一行可视关系 A = B + C(条件触发)"
+        },
+        "boundary": {
+          "type": "string",
+          "$comment": "不成立条件(条件触发)"
+        },
+        "tone": {
+          "enum": [
+            "hook",
+            "analytical",
+            "narrative",
+            "decisive"
+          ]
+        },
+        "lengthHint": {
+          "type": "string"
+        },
+        "transitionTo": {
+          "type": "string"
+        }
+      }
+    },
+    "documentPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "meta",
+        "title",
+        "sections"
+      ],
+      "properties": {
+        "kind": {
+          "const": "document"
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        },
+        "downstreamConstraints": {
+          "$ref": "#/$defs/downstreamConstraints"
+        },
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        },
+        "conclusion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "corePunchline": {
+              "type": "string",
+              "$comment": "能脱离上下文被抄走的核心顿悟"
+            },
+            "callToAction": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "codeFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "spec": {
+          "type": "string",
+          "$comment": "该文件要实现什么(给下游生成)"
+        },
+        "content": {
+          "type": "string",
+          "$comment": "已写好的内容(若直接给)"
+        }
+      }
+    },
+    "codePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "meta",
+        "language",
+        "files"
+      ],
+      "properties": {
+        "kind": {
+          "const": "code"
+        },
+        "meta": {
+          "$ref": "#/$defs/meta"
+        },
+        "downstreamConstraints": {
+          "$ref": "#/$defs/downstreamConstraints"
+        },
+        "language": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/codeFile"
+          }
+        },
+        "entrypoint": {
+          "type": "string"
+        },
+        "interfaceNotes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
