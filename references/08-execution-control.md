@@ -89,7 +89,49 @@ High risk overrides:
   downgradeForbidden = true.
 ```
 
-### 2. Live Upgrade
+### 2. 6f — Workflow Replay
+
+Run when incoming message matches a saved `userWorkflow` (see `references/06-workflow-capture.md` for 6e capture logic).
+
+**Trigger detection (any one → replay mode):**
+```text
+keyword match: message tokens intersect userWorkflow.triggerKeywords (case-insensitive, partial match allowed)
+pattern match: current intake.intent == userWorkflow.taskPattern.intent AND
+               primary taskType ∈ userWorkflow.taskPattern.taskTypes
+               (both must match for pattern match; keyword match alone is sufficient)
+```
+
+**Replay steps:**
+```text
+1. Load matching userWorkflow from memory.userWorkflows (highest priority match first; if tie: most recently used)
+2. Apply pipelineStepConfig: set route/skip flags from userWorkflow.pipelineStepConfig
+   → steps with active=false go into executionControl.skip
+   → remaining steps form the reduced route
+3. Apply learnedDefaults (if non-null): merge into strategy.audienceProfile.dimensions
+   → these are style soft-defaults; any explicit signal in current message overrides them
+4. Apply lockLevel to compose 6d machinePayload constraints:
+   strict: layout/color/font/pageCount locked; text change only
+   normal: content/pages/data flexible; layout/color/font locked
+   loose:  format only
+5. Proceed with reduced pipeline — no user notification ("workflow activated")
+```
+
+**Missing required input (inputSlot absent):**
+```text
+If a step that was NOT skipped requires a field that has no default:
+  → Ask exactly one question (the most blocking gap)
+  → Mark all other gaps [假设: ...]
+  → Do NOT enumerate all missing fields
+```
+
+**Priority resolution (when userWorkflow and workflowRecord both match):**
+```text
+pipelineStepConfig: userWorkflow wins (explicit > inferred)
+structuralDefaults: userWorkflow.learnedDefaults if non-null, else workflowRecord.structuralDefaults
+style conflicts:    explicit signal in current message > learnedDefaults > workflowRecord.structuralDefaults
+```
+
+### 3. Live Upgrade
 
 If a low-complexity task receives a follow-up that demands reasoning:
 
@@ -184,6 +226,20 @@ same_redline_three_rounds:
   qualityGateHistory shows same redline violation in 3 consecutive rounds → loopDetected
   loopType = "same_quality_gate_feedback_three_rounds"
   recoveryProtocolRequired = true
+```
+
+**Re-verification rule (v1.7):**
+
+```text
+修完必过同一道闸再审:
+  quality-gate FAIL → revisionTarget → compose revises → revised draft MUST re-run quality-gate
+  → the gate that previously FAILED must now PASS before delivery
+  → if that same gate FAILS again → count as one repeat failure, feed stop-loss
+  → never ship a revision without re-running the exact gate that caught it
+
+Applies to: all redline failures, quality gate failures, roundtable gate failures.
+Rationale: superpowers verification-before-completion — "修好了" is not a claim,
+           it's the fresh gate output.
 ```
 
 **C-level detail loop:**
@@ -386,7 +442,8 @@ boundary 标了 needWebCheck / needTool，但当前够不着时:
 
 ```
 写入时机: 每个模块完成后，把当前 TaskState 写到 checkpoint 文件
-          路径如 .collab-checkpoint/{taskId}.json；checkpoint 元数据(written/path/lastCompletedModule)写入输出
+          路径 .collab/checkpoints/{taskId}.json（v1.9 统一持久根 .collab/；旧 .collab-checkpoint/ 迁此）；
+          checkpoint 元数据(written/path/lastCompletedModule)写入输出
 写什么:   完整 TaskState 快照(小、结构化)。它就是 #/$defs/taskState
 重启即续: 新进程读最后 checkpoint → 看 intake/boundary/... 哪些已填 → 从 lastCompletedModule 之后续跑
           resumedFrom 记录续跑起点；不从头重跑
@@ -414,6 +471,104 @@ token 耗尽 / 上下文溢出 : C2 三档 → C3 紧急着陆 ; 多轮任务叠
 ```
 粒度是"每模块"：in-flight 的那次生成被硬砍救不回，只能从上一个落盘模块续。模块是天然提交点。
 依赖 harness 允许落盘(本项目已确认可写 checkpoint 文件)。
+```
+
+
+### 13. Downstream Verification Loop (v1.8)
+
+Read `downstreamVerification` after quality-gate runs the downstream verification gate.
+
+```text
+passed=true:
+  action=deliver
+  deliver the downstream artifact and end the loop
+
+passed=false:
+  first classify failClass, then choose route
+```
+
+Force2 capability mismatch before dispatch:
+
+```text
+If handoffPreflight.force2CapabilityCheck.passed=false:
+  do not revise customFile for the same downstream skill
+  search registry for:
+    1. a better single skill
+    2. a tool composition (preprocessor -> renderer -> verifier)
+  if found:
+    action=switch-tool or compose-tools
+    return to interaction-compose(6d) with the new toolPlan
+  if not found:
+    shouldSyncUser=true
+    syncTrigger=downstream_capability_loss
+    requiresConfirmation=true
+    ask user to install/download a suitable skill
+```
+
+Capability-side failure, when any condition holds:
+
+```text
+- the same mismatch appears in 2 consecutive verification rounds
+  AND the customFile was already revised after the previous round
+- first-round mismatch shows the downstream artifact did not recognize the constraint field at all
+  e.g. customFile has lockedZone but the artifact has no corresponding structure
+```
+
+Otherwise default to input-side failure first.
+
+Input-side route:
+
+```text
+action=revise-customfile
+revisionTarget=interaction-compose(6d)
+return to 6d -> revise customFile -> dispatch downstream again -> re-run the same verification gate
+
+same zone fails input-side for 3 consecutive rounds:
+  stopLoss=true
+  revisionTarget=minimal-usable-version
+  deliver a minimum usable downstream artifact with the unmet constraint clearly marked
+```
+
+Capability-side route:
+
+```text
+action=sync-user
+shouldSyncUser=true
+syncTrigger=downstream_capability_loss
+requiresConfirmation=true
+stopLoss=false
+
+syncMessage must be plain:
+  "The downstream tool cannot satisfy the constraint '[constraint]'. Options:
+   1. relax this constraint
+   2. switch downstream tool
+   3. mark this part as needing manual handling."
+```
+
+Boundary:
+
+```text
+input-side -> revise or stopLoss
+capability-side -> syncUser, never stopLoss
+The two failure paths are mutually exclusive.
+```
+
+Force4 handling:
+
+```text
+If downstreamVerification mismatch force=force4:
+  - influencePolicy=advisory-only -> do not route to revise-customfile; deliver artifact with optional user-visible suggestion.
+  - influencePolicy=soft-force4 -> may revise customFile once if the user asked for improvement.
+  - influencePolicy=force4-locked -> revise customFile like a semantic constraint, but never override force1/force2/force3.
+  - diagnosticChain must include the preflight/tool-fit reasoning before any rewrite.
+
+Enterprise/render-engine defaults to advisory-only.
+Personal/co-creator defaults to soft-force4.
+
+stopLoss accounting: force4 is not a separate loop. advisory-only injects nothing, so there is no
+rerun to count. soft-force4 / force4-locked are injected into customFile alongside force1/force3,
+so the next round is one ordinary verification round and is counted by the existing same-zone
+stopLoss budget. force4 never gets its own counter and can never spawn an uncounted loop.
 ```
 
 ## Lazy Anchor
@@ -455,4 +610,9 @@ Before finalizing:
 8. Did constraint decay hit 3-round light notice and 5-round light confirmation?
 9. Did same-redline ×2 trigger stopLoss?
 10. Did I avoid exposing internal state in sync messages?
+11. If a userWorkflow matched (6f), did I apply pipelineStepConfig before routing?
+12. If userWorkflow and workflowRecord both matched, did userWorkflow take priority for structure?
+13. For composite downstream handoff, did downstream final artifact run verification instead of "dispatch and forget"?
+14. On verification FAIL, did I classify input-side vs capability-side before choosing retry or user sync?
+15. Did capability-side FAIL go to syncUser, not useless retry or stopLoss?
 ```

@@ -232,6 +232,26 @@ Rules:
 4. If the condition boundary cannot be made explicit, do not force structure.
 ```
 
+### 5c. Mark Force3 Constraint Strength (v1.8 downstream handoff)
+
+When the task is composite and a downstream handoff is possible, mark `structuredConstraints[].strength` when the user gives a clear signal.
+
+```text
+force (hard redline; downstream must exact-match):
+  template id, font, section/page order, page count, locked fixed text, compliance must-include
+  signal words: 必须 / 固定 / 不能改 / 锁住 / 严格按 / 模板是 X
+
+soft (directional guidance; downstream semantic-match):
+  tone, style preference, visual direction, beautification direction
+  signal words: 尽量 / 做成 / 感觉 / 调性 / 不要太 X
+
+Default:
+  If the user gives no explicit signal, leave strength absent.
+  compose 6d derives missing strength by customFile.mode:
+    render-engine -> force
+    co-creator    -> soft
+```
+
 ### 6. Mark Uncertain Claims
 
 Put claims in `uncertainClaims` when they must not be treated as known facts:
@@ -268,6 +288,18 @@ high:
 ```
 
 High risk usually implies `complexityTier=high`. A simple current-fact lookup can be `complexityTier=low` even when `needWebCheck=true`.
+
+**intent overrides:**
+```text
+intent=assess → complexityTier minimum = medium
+  原因: 风险评估必须经过 strategy 阶段才能产出有据可查的 RISK 模式输出；
+        低复杂度直通 6c 无法激活 RISK 工作模式和相关质量检查。
+  用法: 若其他条件本来是 low，遇 assess 则升到 medium；已是 medium/high 则不变。
+
+intent=vent → complexityTier = low，workMode 锁定为情绪支持模式
+  原因: vent 不需要 strategy/solution-space；直通 compose 6c，用情绪锚定答案。
+  规则: boundary 不升 riskLevel（vent 本身不是高风险内容），除非消息中同时存在安全信号。
+```
 
 ### 8. Tool Need
 

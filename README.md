@@ -53,6 +53,30 @@ Bare LLMs have predictable bad habits. collab-master intercepts each one:
 npx skills add Jingzhe-Zhang1225/collab-master-skill -g --all
 ```
 
+This installs collab-master as a **Claude skill** — it loads on-demand, only when the harness
+judges a request complex enough to consult it.
+
+### Want it always-on? Install the resident gate
+
+For a consistent, cross-client experience, install the **resident control layer** in `clients/`
+instead of (or alongside) the skill. Resident means collab sits in front of **every** request —
+not just the ones a skill trigger happens to catch — and works in Codex / Gemini CLI / OpenCode,
+not only Claude.
+
+```
+clients/AGENTS.md                        → Codex, OpenCode, and most agent clients
+clients/CLAUDE.md                        → Claude Code / Claude.ai
+clients/GEMINI.md                        → Gemini CLI
+clients/.github/copilot-instructions.md  → GitHub Copilot
+clients/.cursor/rules/collab-master.mdc  → Cursor
+clients/.windsurf/rules/collab-master.md → Windsurf
+```
+
+All six are generated from `AGENTS.md` (the single source of truth). **Recommended.** On-demand
+triggering silently skips the medium and borderline tasks where process control matters most. See
+[`clients/README.md`](clients/README.md) for the resident-vs-on-demand comparison and per-client
+install steps.
+
 ## How it works (9 modules)
 
 Not a fixed pipeline — a **dispatch system** that calls only the modules needed:
@@ -108,8 +132,9 @@ Same question, different user, different goal — the answer shape changes drama
 | v1.5 | Roundtable Operator: 6 roles + 30 lenses debating the same problem, chair arbitrates | ✅ Landed v0.2 |
 | v1.6 | Downstream handoff: auto-discovers installed tools for PPT/diagram/document output | Landed |
 | v1.7 | Verification gate: no success claims without fresh evidence (inspired by superpowers) | Signed, pending |
-| v1.8 | Cross-session memory: preferences persist across conversations | Planned |
-| v1.9 | Sub-task parallelism + dual-gate review: DAG runner with spec-compliance and quality check loops | Planned |
+| v1.8 | Constrained downstream handoff: three-force document + dual-mode (constrained/creative) + verification loop | Planned |
+| v1.9 | Cross-session memory: preferences persist across conversations | Planned |
+| v1.10 | Sub-task parallelism + dual-gate review: DAG runner with spec-compliance and quality check loops | Planned |
 
 ## Verification
 

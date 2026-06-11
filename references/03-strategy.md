@@ -79,7 +79,7 @@ Output JSON only (must match `../_shared/taskstate.schema.json` `#/$defs/strateg
 Allowed `workMode` values:
 
 ```text
-FAST | STANDARD | DEEP | COACH | EXECUTIVE | CREATIVE | DEBUG
+FAST | STANDARD | DEEP | COACH | EXECUTIVE | CREATIVE | DEBUG | RISK
 ```
 
 Allowed audience dimensions:
@@ -128,6 +128,14 @@ report  -> explainDepth=brief, actionOrientation=report, tone=inspirational, for
 create  -> explainDepth=normal, actionOrientation=create, tone=warm, visualNeed=medium
 debug   -> explainDepth=normal, actionOrientation=execute, technicalDetail=high, tone=direct
 explore -> explainDepth=normal, actionOrientation=learn
+assess  -> explainDepth=normal, actionOrientation=decide, tone=direct
+         workMode=RISK (see routing table below)
+         successCriteria 强制追加: "风险等级明确标注" / "判断依据可追溯" / "不超越信息边界作结论"
+vent    -> explainDepth=brief, actionOrientation=learn, tone=warm, formality=casual
+         workMode 锁定为情绪支持模式(不走常规路由)
+         successCriteria: "情绪被听见" / "情境被具体锚定" / "无方案灌输"
+         注: vent 时 audienceProfile 依旧按正常维度填写供后续 6c 使用；
+             workMode 不写入 strategyOutput（6c 直接按 vent 模式输出）
 ```
 
 Then adjust from taskTypes:
@@ -139,6 +147,28 @@ product-select/select/advise -> tone=direct, explainDepth=brief
 present/report/summarize -> formality=professional; successCriteria should include conclusion-first and scanability
 design/ideate -> visualNeed=medium or high
 language-analyze/translate/rewrite/write -> preserve user tone and meaning
+```
+
+Domain ≠ expertise rule (apply before any other adjustment):
+
+```text
+domains=[financial/medical/legal/academic/safety] does NOT imply backgroundAssumed=practitioner.
+Domain = topic area. User expertise must be inferred from wording, not domain.
+
+Default for domain-tagged tasks: backgroundAssumed=layperson UNLESS the user demonstrates expertise
+through their own phrasing (uses field-specific jargon correctly, cites specific tools/metrics/frameworks,
+or explicitly states a professional role).
+
+Layperson signals — any one present → backgroundAssumed=layperson, technicalDetail=none:
+  Chinese: "给一点" / "我不懂" / "通俗点" / "简单说" / "排个序" / "不要太有风险" /
+           "帮我看看" / "不太了解" / "说人话" / "能不能解释"
+  English: "I don't know much" / "keep it simple" / "in plain terms" / "explain like I'm new" /
+           "just give me the basics" / "not too technical"
+
+Expert signals — need ≥2 clear indicators before upgrading:
+  User uses domain jargon correctly (e.g. "久期风险" / "α收益" / "信用利差")
+  User references specific professional tools/metrics (e.g. "看沪深300的PE分位数")
+  User explicitly states a professional role ("我是基金经理")
 ```
 
 Then adjust from explicit user clues:
@@ -232,7 +262,11 @@ Use primary taskType first, then intent, then risk. High risk overrides low-comp
 Decision table:
 
 ```text
-if boundary.riskLevel == "high":
+if intake.intent == "vent":
+  workMode 不从此表路由; 直接进 compose 6c 情绪支持模式（跳过 workMode 赋值）
+elif intake.intent == "assess":
+  workMode = "RISK"
+elif boundary.riskLevel == "high":
   workMode = "DEEP"
 elif intake.intent == "debug":
   workMode = "DEBUG"
@@ -257,13 +291,16 @@ else:
 Mode meanings:
 
 ```text
-FAST: stable/simple fact or compact answer; no expanded framework
-STANDARD: direct structured answer with assumptions and next step
-DEEP: high-risk, high-dependency, or complex analysis; include risks and verification
-COACH: teaching mode; build intuition and transfer
+FAST:      stable/simple fact or compact answer; no expanded framework
+STANDARD:  direct structured answer with assumptions and next step
+DEEP:      high-risk, high-dependency, or complex analysis; include risks and verification
+COACH:     teaching mode; build intuition and transfer
 EXECUTIVE: conclusion-first briefing; priorities and actions
-CREATIVE: divergent then convergent; distinct directions
-DEBUG: hypotheses, tests, root cause, fix, verification
+CREATIVE:  divergent then convergent; distinct directions
+DEBUG:     hypotheses, tests, root cause, fix, verification
+RISK:      structured risk assessment; severity + basis + boundary; no professional conclusion beyond stated bounds
+           格式: ① 风险等级(低/中/高/不确定) ② 判断依据(具体可追溯) ③ 边界声明(我的判断在哪里失效)
+           禁止: 给出超越所提信息边界的医学/法律/财务结论
 ```
 
 If boundary says `complexityTier=low`, strategy normally should not be invoked. If it is invoked anyway during tests, return minimal defaults and avoid escalating unless risk or intent requires it.
@@ -395,6 +432,13 @@ AI 默认会犯两个错:
   3. 默认选 2x2 / impact-effort——因为训练数据里这类框架最常见。
      排除动作: 选框架前过反坍缩闸(Step 5)，逐一排除另外 8 种形状。
                自检: 我能用一句话说清"为什么是 2x2 不是光谱/钻井/反馈环"吗？不能 → 重来。
+  4. domains=[medical/financial/legal] + backgroundAssumed=layperson 时，仍输出行业术语密集的内容。
+     排除动作: 凡 domains 包含上述高风险域且 backgroundAssumed=layperson/novice，
+               在 successCriteria 中强制追加：
+               "每出现一个行业术语，要么用白话替换，要么立即配括号解释，要么和用户的具体问题绑定。
+                总术语数（含已解释）≤ 3 个/回答；否则拆成多轮或改用日常比喻。"
+               自检: 我能把这个回答念给一个从未接触过该行业的人听，对方能直接理解并知道下一步怎么做吗？
+                     不能 → 术语密度超标，拆解或替换后重来。
 ```
 
 ## Self-Check
@@ -411,4 +455,8 @@ Before finalizing:
 7. Did I avoid leaking internal labels into user-facing output?
 8. Did I avoid writing fields outside successCriteria/audienceProfile/workMode/reasoningFrameworks?
 9. Did I respect schema actionOrientation enum (learn/execute/decide/report/create only)?
+10. If domains=[financial/medical/legal/academic], did I infer backgroundAssumed from the user's wording,
+    NOT from the domain label? Did I check for layperson signals before defaulting to practitioner?
+11. If intent=assess, did I assign workMode=RISK and add the three mandatory successCriteria items?
+12. If intent=vent, did I skip workMode routing and confirm the output is emotion-first (no plan-push)?
 ```

@@ -1,5 +1,6 @@
 version: v1.6
-description: Runtime registry for compose 6d adaptive handoff. This is not a list of bundled dependencies; it is a matching table for available downstream skills.
+description: |
+  Runtime registry for compose 6d adaptive handoff. This is not a list of bundled dependencies; it is a matching table for available downstream skills.
   Selection: within the same capability, candidates are sorted by defaultRank descending (10=preferred, 0=fallback-only).
   User can override selection by naming a specific skill in conversation.
   skillRef prefix: r0/ = user's global skills directory; r1/ = project-local skills; internal: = bundled reference.
@@ -157,7 +158,7 @@ skills:
     defaultRank: 6
   fallback-downstream-payload:
     displayName: fallback downstreamPayload
-    skillRef: internal: _shared/downstreamPayload.schema.json (fixed-format handoff, not a named skill)
+    skillRef: "internal: _shared/downstreamPayload.schema.json (fixed-format handoff, not a named skill)"
     capabilities:
     - slides
     - diagram

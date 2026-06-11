@@ -420,10 +420,231 @@ def cmd_self(args: Any) -> None:
             integrity_checks.append(("skill registry bad?FAIL (anti-drift)", bad_ok, "bad registry passed unexpectedly"))
             if not bad_ok:
                 integrity_mismatches += 1
-        except Exception:
-            integrity_checks.append(("skill registry self-check", True, "load error; regression skipped"))
+        except Exception as exc:
+            integrity_checks.append(("skill registry self-check", False, f"load/check error: {exc}"))
+            integrity_mismatches += 1
     else:
-        integrity_checks.append(("skill registry self-check", True, "skill-registry files not found; regression skipped"))
+        integrity_checks.append(("skill registry self-check", False, "skill-registry files not found"))
+        integrity_mismatches += 1
+
+
+    # v1.8 customFile + downstream verification anti-drift checks
+    required_v18_defs = ["failClass", "matchType", "downstreamVerification"]
+    for def_name in required_v18_defs:
+        ok = def_name in schema.get("$defs", {})
+        integrity_checks.append((f"v1.8 def present: {def_name}", ok, "def missing from schema"))
+        if not ok:
+            integrity_mismatches += 1
+
+    rev_values = schema.get("$defs", {}).get("revisionTarget", {}).get("enum", [])
+    rev_ok = "interaction-compose(6d)" in rev_values
+    integrity_checks.append(("revisionTarget includes interaction-compose(6d)", rev_ok, "enum value missing"))
+    if not rev_ok:
+        integrity_mismatches += 1
+
+    sync_values = schema.get("$defs", {}).get("syncTrigger", {}).get("enum", [])
+    sync_ok = "downstream_capability_loss" in sync_values
+    integrity_checks.append(("syncTrigger includes downstream_capability_loss", sync_ok, "enum value missing"))
+    if not sync_ok:
+        integrity_mismatches += 1
+
+    strength_schema = schema.get("$defs", {}).get("structuredConstraint", {}).get("properties", {}).get("strength", {})
+    strength_ok = strength_schema.get("enum") == ["force", "soft"]
+    integrity_checks.append(("structuredConstraint.strength enum is [force, soft]", strength_ok, "strength enum missing or drifted"))
+    if not strength_ok:
+        integrity_mismatches += 1
+
+    force_values = (
+        schema.get("$defs", {})
+        .get("downstreamVerification", {})
+        .get("properties", {})
+        .get("mismatches", {})
+        .get("items", {})
+        .get("properties", {})
+        .get("force", {})
+        .get("enum", [])
+    )
+    force24_ok = "force2" in force_values and "force4" in force_values
+    integrity_checks.append(("downstreamVerification mismatch force includes force2 and force4", force24_ok, "force2/force4 enum value missing"))
+    if not force24_ok:
+        integrity_mismatches += 1
+
+    cf_path = _default_customfile_schema(Path(args.schema).resolve().parent)
+    if cf_path.exists():
+        try:
+            cf_schema = json.loads(cf_path.read_text(encoding="utf-8"))
+            Draft202012Validator.check_schema(cf_schema)
+            cf_defs = cf_schema.get("$defs", {})
+            cf_props = cf_schema.get("properties", {})
+            force_model_ok = (
+                "handoffPreflight" in cf_defs
+                and "handoffPreflight" in cf_props
+                and "designReview" in cf_defs
+                and "designReview" in cf_props
+                and "diagnosticChain" in cf_defs.get("designReview", {}).get("properties", {})
+            )
+            integrity_checks.append(("customFile preflight + designReview force model present", force_model_ok, "handoffPreflight/designReview/diagnosticChain missing"))
+            if not force_model_ok:
+                integrity_mismatches += 1
+            validator = Draft202012Validator(cf_schema)
+            bad_customfile = {"kind": "slides"}
+            bad_errors = list(validator.iter_errors(bad_customfile))
+            bad_ok = len(bad_errors) > 0
+            integrity_checks.append(("customFile bad?FAIL (anti-drift)", bad_ok, "bad customFile passed unexpectedly"))
+            if not bad_ok:
+                integrity_mismatches += 1
+
+            good_customfile = _make_customfile_valid()
+            good_errors = list(validator.iter_errors(good_customfile))
+            good_ok = len(good_errors) == 0
+            integrity_checks.append(("customFile good?PASS (anti-drift)", good_ok, f"good customFile failed: {good_errors[0].message[:80]}" if good_errors else ""))
+            if not good_ok:
+                integrity_mismatches += 1
+
+            task_lock = schema.get("$defs", {}).get("lockLevel", {}).get("enum", [])
+            custom_lock = cf_schema.get("properties", {}).get("lockLevel", {}).get("enum", [])
+            lock_ok = custom_lock == task_lock
+            integrity_checks.append(("customFile lockLevel mirrors taskstate lockLevel", lock_ok, f"custom={custom_lock}; taskstate={task_lock}"))
+            if not lock_ok:
+                integrity_mismatches += 1
+        except Exception as exc:
+            integrity_checks.append(("customFile schema self-check", False, f"load/check error: {exc}"))
+            integrity_mismatches += 1
+    else:
+        integrity_checks.append(("customFile schema self-check", False, "customFile.schema.json not found"))
+        integrity_mismatches += 1
+
+    # v1.9 durable layer: asset store + memory adapter anti-drift checks
+    required_v19_defs = ["assetType", "assetContext", "durableAsset"]
+    for def_name in required_v19_defs:
+        ok = def_name in schema.get("$defs", {})
+        integrity_checks.append((f"v1.9 def present: {def_name}", ok, "def missing from schema"))
+        if not ok:
+            integrity_mismatches += 1
+
+    mem_props = schema.get("$defs", {}).get("memoryFields", {}).get("properties", {})
+    assets_ok = "assets" in mem_props
+    integrity_checks.append(("memoryFields.assets present", assets_ok, "assets index missing"))
+    if not assets_ok:
+        integrity_mismatches += 1
+
+    prov_ok = "provenance" in schema.get("$defs", {}).get("memoryEntry", {}).get("properties", {})
+    integrity_checks.append(("memoryEntry.provenance present", prov_ok, "provenance field missing"))
+    if not prov_ok:
+        integrity_mismatches += 1
+
+    # durableAsset.tags.domains must reuse #/$defs/domain (no second topic taxonomy → no drift)
+    dom_ref = (
+        schema.get("$defs", {}).get("durableAsset", {}).get("properties", {})
+        .get("tags", {}).get("properties", {}).get("domains", {})
+        .get("items", {}).get("$ref")
+    )
+    dom_ok = dom_ref == "#/$defs/domain"
+    integrity_checks.append(("durableAsset.tags.domains reuses #/$defs/domain", dom_ok, f"got {dom_ref}, expected #/$defs/domain"))
+    if not dom_ok:
+        integrity_mismatches += 1
+
+    # assetType must be generalized beyond ppt-template (v1.9.1: any common artifact)
+    at_values = schema.get("$defs", {}).get("assetType", {}).get("enum", [])
+    at_ok = "report" in at_values and "proposal" in at_values
+    integrity_checks.append(("assetType generalized beyond ppt-template", at_ok, f"got {at_values}; expected report/proposal present"))
+    if not at_ok:
+        integrity_mismatches += 1
+
+    # customFile v1.9: referenceArtifact.assetId + slidesProfile def + good/bad anti-drift
+    cf_path19 = _default_customfile_schema(Path(args.schema).resolve().parent)
+    if cf_path19.exists():
+        try:
+            cf_schema19 = json.loads(cf_path19.read_text(encoding="utf-8"))
+            cf_defs19 = cf_schema19.get("$defs", {})
+            assetid_ok = "assetId" in cf_defs19.get("referenceArtifact", {}).get("properties", {})
+            integrity_checks.append(("customFile referenceArtifact.assetId present", assetid_ok, "assetId missing"))
+            if not assetid_ok:
+                integrity_mismatches += 1
+            sp_ok = "slidesProfile" in cf_defs19
+            integrity_checks.append(("customFile slidesProfile def present", sp_ok, "slidesProfile missing"))
+            if not sp_ok:
+                integrity_mismatches += 1
+            ap_ok = "artifactProfile" in cf_defs19
+            integrity_checks.append(("customFile artifactProfile def present", ap_ok, "artifactProfile missing"))
+            if not ap_ok:
+                integrity_mismatches += 1
+            if sp_ok:
+                sp_validator = Draft202012Validator({
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "$ref": "#/$defs/slidesProfile",
+                    "$defs": cf_defs19,
+                })
+                good_sp = {
+                    "pageRoles": [
+                        {"slideRef": "slide-1", "roleTag": "cover", "roleText": "cover", "keepPolicy": "core"}
+                    ],
+                    "slideIndex": {"modular": True, "intentMap": [{"intent": "weekly summary", "slides": ["slide-3"]}]},
+                }
+                good_sp_errors = list(sp_validator.iter_errors(good_sp))
+                good_sp_ok = len(good_sp_errors) == 0
+                integrity_checks.append(("slidesProfile good→PASS (anti-drift)", good_sp_ok, f"good slidesProfile failed: {good_sp_errors[0].message[:80]}" if good_sp_errors else ""))
+                if not good_sp_ok:
+                    integrity_mismatches += 1
+                bad_sp = {"slideIndex": {}}  # missing pageRoles + slideIndex.modular
+                bad_sp_ok = len(list(sp_validator.iter_errors(bad_sp))) > 0
+                integrity_checks.append(("slidesProfile bad→FAIL (anti-drift)", bad_sp_ok, "bad slidesProfile passed unexpectedly"))
+                if not bad_sp_ok:
+                    integrity_mismatches += 1
+            if ap_ok:
+                ap_validator = Draft202012Validator({
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "$ref": "#/$defs/artifactProfile",
+                    "$defs": cf_defs19,
+                })
+                good_ap = {
+                    "artifactType": "纯文字工作周报",
+                    "structure": [
+                        {"unit": "一句话总结", "function": "30 秒抓住本周", "presence": "mandatory", "order": 1}
+                    ],
+                    "qualityCriteria": {
+                        "good": ["30 秒看懂本周", "问题带下一步"],
+                        "bad": ["全是'推进/优化'空话", "无结果无数据"],
+                    },
+                }
+                good_ap_errors = list(ap_validator.iter_errors(good_ap))
+                good_ap_ok = len(good_ap_errors) == 0
+                integrity_checks.append(("artifactProfile good→PASS (anti-drift)", good_ap_ok, f"good artifactProfile failed: {good_ap_errors[0].message[:80]}" if good_ap_errors else ""))
+                if not good_ap_ok:
+                    integrity_mismatches += 1
+                bad_ap = {"artifactType": "x"}  # missing structure + qualityCriteria
+                bad_ap_ok = len(list(ap_validator.iter_errors(bad_ap))) > 0
+                integrity_checks.append(("artifactProfile bad→FAIL (anti-drift)", bad_ap_ok, "bad artifactProfile passed unexpectedly"))
+                if not bad_ap_ok:
+                    integrity_mismatches += 1
+        except Exception as exc:
+            integrity_checks.append(("customFile v1.9 self-check", False, f"load/check error: {exc}"))
+            integrity_mismatches += 1
+
+    # Runtime references must not carry dev-skill shell. Mock specs live in evals/.
+    refs_dir = Path(args.schema).resolve().parent.parent / "references"
+    if refs_dir.exists():
+        bad_refs = []
+        for ref_path in sorted(refs_dir.glob("*.md")):
+            try:
+                ref_text = ref_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                bad_refs.append(f"{ref_path.name}: read error {exc}")
+                continue
+            problems = []
+            if ref_text.startswith("---"):
+                problems.append("frontmatter")
+            if "\n## Mock Testing\n" in ref_text:
+                problems.append("Mock Testing")
+            if problems:
+                bad_refs.append(f"{ref_path.name}: {', '.join(problems)}")
+        refs_ok = len(bad_refs) == 0
+        integrity_checks.append(("runtime references have no dev-skill shell", refs_ok, "; ".join(bad_refs)))
+        if not refs_ok:
+            integrity_mismatches += 1
+    else:
+        integrity_checks.append(("runtime references have no dev-skill shell", False, f"references dir not found: {refs_dir}"))
+        integrity_mismatches += 1
 
     if not args.quiet and not args.json:
         print(f"[self] Schema integrity ({len(integrity_checks)} checks)...")
@@ -459,7 +680,17 @@ def cmd_self(args: Any) -> None:
     ]
 
     mismatch = 0
-    all_results = []
+    all_results = [
+        {
+            "target": label,
+            "def": "integrity",
+            "status": "pass" if ok else "fail",
+            "expected": "pass",
+            "actual": "pass" if ok else "fail",
+            "errors": [] if ok else [{"path": "$", "message": detail or "integrity check failed", "value": None}],
+        }
+        for label, ok, detail in integrity_checks
+    ]
     if not args.quiet and not args.json:
         print(f"[self] Running {len(self_regression_samples)} drift-regression samples...\n")
 
@@ -645,6 +876,112 @@ def _make_execution_control_output(
     return base
 
 
+def _make_customfile_valid() -> dict:
+    return {
+        "kind": "slides",
+        "mode": "render-engine",
+        "lockStrategy": "zone-first",
+        "lockLevel": "strict",
+        "manifest": {"id": "cf-1", "title": "Quarterly Report", "templateId": "corp-v3"},
+        "materials": [
+            {
+                "id": "m1",
+                "origin": "derived",
+                "content": "Revenue grew 12%.",
+                "boundTo": "block-1.body",
+            }
+        ],
+        "blocks": [
+            {
+                "blockId": "block-1",
+                "template": "cover",
+                "zones": [
+                    {"role": "title", "text": "Quarterly Report", "locked": True},
+                    {"role": "body", "boundMaterialId": "m1"},
+                ],
+            }
+        ],
+        "referenceArtifact": {
+            "kind": "pptx",
+            "sourceRef": "samples/board-report.pptx",
+            "usage": "style-reference",
+            "extractionStatus": "extracted",
+            "notes": ["Use as layout grammar; do not copy business content."],
+        },
+        "styleProfile": {
+            "reusePolicy": "interpret-not-copy",
+            "visualDNA": ["dense executive layout", "calm accent color"],
+            "layoutGrammar": ["cover uses title-left and metric-right"],
+            "componentPatterns": ["section divider", "metric strip"],
+            "typography": ["Inter-like sans serif"],
+            "colorSystem": ["dark text on white canvas"],
+            "spacingRhythm": ["wide outer margin, tight inner grid"],
+            "chartRules": ["prefer annotated bar charts"],
+            "imitationBoundaries": ["do not copy logos or confidential content"],
+        },
+        "handoffPreflight": {
+            "force1Force3Check": {
+                "passed": True,
+                "checkedAgainst": ["templateId=corp-v3", "locked title zone"],
+                "mismatches": [],
+                "resolution": "proceed",
+            },
+            "force2CapabilityCheck": {
+                "passed": True,
+                "compositionUsed": True,
+                "toolPlan": [
+                    {
+                        "skillId": "html-ppt",
+                        "role": "renderer",
+                        "capability": "slides",
+                        "contractFit": "native",
+                    },
+                    {
+                        "skillId": "huashu-design",
+                        "role": "verifier",
+                        "capability": "design-review",
+                        "contractFit": "native",
+                    },
+                ],
+                "missingCapabilities": [],
+            },
+            "injectionDecision": "compose-tools",
+            "recommendedInstall": [],
+            "logicChain": [
+                "force1 satisfies force3 corporate template constraints",
+                "renderer and verifier are composed to cover output plus review",
+            ],
+        },
+        "designReview": {
+            "enabled": True,
+            "rubric": "huashu-ppt",
+            "trigger": "artifact-produced",
+            "scores": [
+                {
+                    "dimension": "visual_hierarchy",
+                    "score": 7.5,
+                    "evidence": "Title hierarchy is clear, but metric cards are too dominant.",
+                    "advice": "Reduce metric-card weight and keep the title as the primary anchor.",
+                }
+            ],
+            "agentSuggestion": "Reduce metric-card visual weight while keeping the corporate template fixed.",
+            "diagnosticChain": [
+                "preflight passed before customFile injection",
+                "artifact review found visual hierarchy weakness",
+            ],
+            "influencePolicy": "advisory-only",
+            "appliedToCustomFile": False,
+        },
+        "constraints": {
+            "templateId": "corp-v3",
+            "font": "Inter",
+            "lockedZones": ["block-1.title"],
+            "forbidden": ["change template", "do not copy logos or confidential content"],
+            "softGuidance": [],
+        },
+    }
+
+
 def _make_mock_with_domain(bad_domain: str) -> dict:
     return {
         "id": 99,
@@ -796,6 +1133,10 @@ def _default_downstream_schema(schema_dir: Path) -> Path:
     return schema_dir / "downstreamPayload.schema.json"
 
 
+def _default_customfile_schema(schema_dir: Path) -> Path:
+    return schema_dir / "customFile.schema.json"
+
+
 def _default_registry_schema(schema_dir: Path) -> Path:
     return schema_dir / "skill-registry.schema.json"
 
@@ -866,6 +1207,141 @@ def cmd_downstream(args: Any) -> None:
 # ──────────────────── lint-md (过渡) ────────────────────
 
 
+
+
+def cmd_customfile(args: Any) -> None:
+    """Validate a v1.8 customFile instance against customFile.schema.json."""
+    schema_dir = Path(args.schema).resolve().parent
+    cf_path = Path(args.customfile_schema or _default_customfile_schema(schema_dir)).resolve()
+
+    if not cf_path.exists():
+        print(f"customFile.schema.json not found: {cf_path}", file=sys.stderr)
+        sys.exit(2)
+
+    try:
+        cf_schema = json.loads(cf_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Failed to load customFile schema: {exc}", file=sys.stderr)
+        sys.exit(2)
+
+    try:
+        Draft202012Validator.check_schema(cf_schema)
+    except SchemaError as exc:
+        print(f"customFile schema is invalid: {exc.message}", file=sys.stderr)
+        sys.exit(3)
+
+    total = 0
+    passed = 0
+    failed = 0
+    all_results = []
+
+    for target_spec in args.files:
+        total += 1
+        if target_spec == "-":
+            instance = _load_json_stdin()
+            target_name = "-"
+        else:
+            path, instance = _load_json_file(target_spec)
+            target_name = str(path)
+
+        validator = Draft202012Validator(cf_schema)
+        errors = _collect_errors(validator, instance)
+        ok = len(errors) == 0
+        if ok:
+            passed += 1
+        else:
+            failed += 1
+        all_results.append({
+            "target": target_name,
+            "kind": instance.get("kind", "unknown") if isinstance(instance, dict) else "unknown",
+            "status": "pass" if ok else "fail",
+            "errors": errors,
+        })
+
+        if not args.quiet and not args.json:
+            tag = "PASS" if ok else "FAIL"
+            kind = instance.get("kind", "?") if isinstance(instance, dict) else "?"
+            print(f"[{tag}] {target_name}  (#/customFile.schema.json, kind={kind})")
+            for err in errors:
+                print(f"   {err['path']} : {err['message']}")
+                if err["value"] is not None:
+                    print(f"            value: {err['value']}")
+
+    if args.json:
+        _json_output(total, passed, failed, all_results, args)
+    elif not args.quiet:
+        print(f"\n{total} file(s): {passed} passed, {failed} failed")
+    else:
+        print(f"{total} file(s): {passed} passed, {failed} failed")
+
+    sys.exit(1 if failed > 0 else 0)
+
+def cmd_asset(args: Any) -> None:
+    """Validate a v1.9 asset: slidesProfile (customFile.schema.json) or durableAsset (taskstate)."""
+    schema_dir = Path(args.schema).resolve().parent
+    kind = args.asset_kind
+
+    if kind == "durable-asset":
+        validator = _build_validator("durableAsset", args.schema_data)
+        def_label = "taskstate #/$defs/durableAsset"
+    else:
+        cf_path = Path(args.customfile_schema or _default_customfile_schema(schema_dir)).resolve()
+        if not cf_path.exists():
+            print(f"customFile.schema.json not found: {cf_path}", file=sys.stderr)
+            sys.exit(2)
+        try:
+            cf_schema = json.loads(cf_path.read_text(encoding="utf-8"))
+            Draft202012Validator.check_schema(cf_schema)
+        except (json.JSONDecodeError, OSError, SchemaError) as exc:
+            print(f"Failed to load customFile schema: {exc}", file=sys.stderr)
+            sys.exit(3)
+        def_name = "slidesProfile" if kind == "slides-profile" else "artifactProfile"
+        sub = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$ref": f"#/$defs/{def_name}",
+            "$defs": cf_schema["$defs"],
+        }
+        validator = Draft202012Validator(sub)
+        def_label = f"customFile #/$defs/{def_name}"
+
+    total = 0
+    passed = 0
+    failed = 0
+    all_results = []
+
+    for target_spec in args.files:
+        total += 1
+        if target_spec == "-":
+            instance = _load_json_stdin()
+            target_name = "-"
+        else:
+            path, instance = _load_json_file(target_spec)
+            target_name = str(path)
+
+        errors = _collect_errors(validator, instance)
+        ok = len(errors) == 0
+        if ok:
+            passed += 1
+        else:
+            failed += 1
+        all_results.append({"target": target_name, "status": "pass" if ok else "fail", "errors": errors})
+
+        if not args.quiet and not args.json:
+            tag = "PASS" if ok else "FAIL"
+            print(f"[{tag}] {target_name}  ({def_label})")
+            for err in errors:
+                print(f"   {err['path']} : {err['message']}")
+                if err["value"] is not None:
+                    print(f"            value: {err['value']}")
+
+    if args.json:
+        _json_output(total, passed, failed, all_results, args)
+    elif not args.quiet:
+        print(f"\n{total} file(s): {passed} passed, {failed} failed")
+    else:
+        print(f"{total} file(s): {passed} passed, {failed} failed")
+
+    sys.exit(1 if failed > 0 else 0)
 
 def cmd_registry(args: Any) -> None:
     """Validate references/skill-registry.yaml against skill-registry.schema.json."""
@@ -1012,6 +1488,18 @@ def _build_parser(schema_path_default: str) -> argparse.ArgumentParser:
     p.add_argument("files", nargs="+", help="JSON file(s) or '-' for stdin")
     p.add_argument("--downstream-schema", default=None, help="Path to downstreamPayload.schema.json")
 
+    # customfile
+    p = sub.add_parser("customfile", help="Validate customFile against customFile.schema.json (v1.8)")
+    p.add_argument("files", nargs="+", help="JSON file(s) or '-' for stdin")
+    p.add_argument("--customfile-schema", default=None, help="Path to customFile.schema.json")
+
+    # asset (v1.9)
+    p = sub.add_parser("asset", help="Validate a v1.9 asset: artifactProfile / slidesProfile / durableAsset")
+    p.add_argument("files", nargs="+", help="JSON file(s) or '-' for stdin")
+    p.add_argument("--asset-kind", choices=["artifact-profile", "slides-profile", "durable-asset"], default="artifact-profile",
+                   help="artifact-profile (customFile #/$defs/artifactProfile, default) | slides-profile (visual specialization) | durable-asset (taskstate index entry)")
+    p.add_argument("--customfile-schema", default=None, help="Path to customFile.schema.json")
+
     # registry
     p = sub.add_parser("registry", help="Validate references/skill-registry.yaml against skill-registry.schema.json (v1.6)")
     p.add_argument("--registry", default=None, help="Path to skill-registry.yaml")
@@ -1070,6 +1558,10 @@ def main() -> None:
         cmd_lenses(args)
     elif args.command == "downstream":
         cmd_downstream(args)
+    elif args.command == "customfile":
+        cmd_customfile(args)
+    elif args.command == "asset":
+        cmd_asset(args)
     elif args.command == "registry":
         cmd_registry(args)
     elif args.command == "list-defs":

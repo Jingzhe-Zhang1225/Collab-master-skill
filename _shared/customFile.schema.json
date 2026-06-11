@@ -1,0 +1,483 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://collab-master-skill/_shared/customFile.schema.json",
+  "title": "compose 6d constraint-aware custom file contract (v1.8)",
+  "$comment": "v1.8 constraint-aware downstream handoff intermediate format. Four forces: force1=collab structured output, force2=downstream contract, force3=user original constraints/reference grammar, force4=agent design review advice derived from artifact scoring. Kind-agnostic: blocks[].zones[] generalizes slides/document/diagram. downstreamPayload(v1.6) remains fallback for unconstrained scenarios. lockLevel enum mirrors taskstate.schema.json #/$defs/lockLevel; validate.py self checks both stay identical.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "mode", "lockStrategy", "lockLevel", "manifest", "materials", "constraints"],
+  "$defs": {
+    "material": {
+      "$comment": "One force1 content unit, with provenance.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "origin", "content"],
+      "properties": {
+        "id": { "type": "string" },
+        "origin": {
+          "enum": ["raw", "derived", "template"],
+          "$comment": "raw=user-provided text; derived=collab processed output; template=fixed template text"
+        },
+        "content": { "type": "string" },
+        "boundTo": {
+          "type": "string",
+          "$comment": "Target zone reference, e.g. block-3.body"
+        }
+      }
+    },
+    "zone": {
+      "$comment": "A fillable zone inside a block. text and boundMaterialId are alternatives.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "$comment": "title/subtitle/body/footer/... follows template vocabulary"
+        },
+        "text": { "type": "string" },
+        "boundMaterialId": { "type": "string" },
+        "locked": {
+          "type": "boolean",
+          "$comment": "Zone-level lock. true means this zone text must not be changed. Takes precedence over package-level lockLevel."
+        }
+      }
+    },
+    "block": {
+      "$comment": "Kind-agnostic container: one slide, one document section, or one diagram group.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blockId", "zones"],
+      "properties": {
+        "blockId": { "type": "string" },
+        "template": {
+          "type": "string",
+          "$comment": "Template name, e.g. cover/progress/two-col"
+        },
+        "zones": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/zone" }
+        }
+      }
+    },
+    "constraints": {
+      "$comment": "Force3: original user constraints. lockedZones/forbidden are hard redlines; softGuidance is semantic direction.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "templateId": { "type": "string" },
+        "font": { "type": "string" },
+        "lockedZones": {
+          "type": "array",
+          "items": { "type": "string" },
+          "$comment": "Zone references such as block-3.title"
+        },
+        "forbidden": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "softGuidance": {
+          "type": "array",
+          "items": { "type": "string" },
+          "$comment": "Directional constraints, e.g. 'tech feel but not cold'"
+        }
+      }
+    },
+    "referenceArtifact": {
+      "$comment": "Optional source artifact supplied by the user as a style/layout reference. The artifact is read for reusable design grammar, not copied as content.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sourceRef", "usage"],
+      "properties": {
+        "kind": {
+          "enum": ["pptx", "pdf", "image-set", "html-deck"],
+          "$comment": "Original or converted reference artifact type."
+        },
+        "sourceRef": {
+          "type": "string",
+          "$comment": "File path, attachment id, or internal scratch id for the reference artifact."
+        },
+        "usage": {
+          "enum": ["style-reference", "layout-reference", "content-reference"],
+          "$comment": "How the reference is allowed to influence the new output."
+        },
+        "extractionStatus": {
+          "enum": ["pending", "extracted", "unavailable"]
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "assetId": {
+          "type": "string",
+          "$comment": "v1.9: if this reference comes from a stored library asset, its durableAsset.id (taskstate memory.assets[]). When set, the slidesProfile is loaded from .collab/assets/ instead of re-extracted; a freshly extracted deck is stored and its id backfilled here."
+        }
+      }
+    },
+    "styleProfile": {
+      "$comment": "Reusable design grammar extracted from a reference deck. Keep observations operational: what downstream must do or avoid.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reusePolicy": {
+          "enum": ["interpret-not-copy", "strict-template-clone", "theme-only"],
+          "$comment": "Default is interpret-not-copy unless the user owns the deck/template and asks for exact reuse."
+        },
+        "visualDNA": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "layoutGrammar": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "componentPatterns": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "typography": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "colorSystem": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "spacingRhythm": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "chartRules": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "imitationBoundaries": {
+          "$comment": "Hard IP/privacy line: logos, confidential numbers, private names, unique original artwork that must NOT be copied. Each entry MUST also be projected into constraints.forbidden so the downstream verification gate enforces it as an exact-match force3 redline (06-interaction-compose 5c). This array alone is advisory; constraints.forbidden is what gets checked.",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "scoreItem": {
+      "$comment": "One scored design-audit dimension. This is downstream artifact scoring, not the main quality-gate.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension", "score", "evidence", "advice"],
+      "properties": {
+        "dimension": {
+          "enum": [
+            "philosophy_consistency",
+            "visual_hierarchy",
+            "craft_detail",
+            "functional_fit",
+            "innovation"
+          ],
+          "$comment": "Huashu-style PPT/design rubric dimensions, kept as ASCII enum."
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "evidence": { "type": "string" },
+        "advice": { "type": "string" }
+      }
+    },
+    "designReview": {
+      "$comment": "Force4: agent-owned design recommendation generated from scored downstream artifact review. Enterprise render-engine keeps it advisory-only; personal co-creator may write it back as soft guidance.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "rubric", "influencePolicy", "agentSuggestion"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "rubric": {
+          "enum": ["huashu-ppt", "custom", "none"]
+        },
+        "trigger": {
+          "enum": ["artifact-produced", "user-dissatisfied", "manual-request"]
+        },
+        "scores": {
+          "$comment": "Per-dimension diagnosis only. There is deliberately NO overallScore: a single rolled-up number invites 'score decides the gate' drift and a weighted formula, both of which violate the binary-gate / no-scoring invariant. The verdict lives in agentSuggestion, not a number.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/scoreItem" }
+        },
+        "agentSuggestion": {
+          "type": "string",
+          "$comment": "Operational suggestion produced by the agent from the scoring result."
+        },
+        "influencePolicy": {
+          "enum": ["advisory-only", "soft-force4", "force4-locked"],
+          "$comment": "advisory-only=show/record suggestion but do not rewrite customFile; soft-force4=append to constraints.softGuidance; force4-locked=only when user explicitly approves locking the advice."
+        },
+        "diagnosticChain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "$comment": "Logic chain from preflight/tool-fit detection and artifact review. Used as a second validation path so Force4 does not optimize the wrong root cause."
+        },
+        "appliedToCustomFile": {
+          "type": "boolean"
+        }
+      }
+    },
+    "artifactProfile": {
+      "$comment": "v1.9 通用产物生成契约(任意常见产物：周报/提案/纪要/简历/邮件/文档/计划/PPT…)。目标不是复刻表面格式，是提炼『生成契约』：给谁看、解决什么问题、信息怎么排序、每部分放什么、什么语气、多长、哪里不能乱写、什么算好。PPT 等视觉型产物在 visualProfile 里附带 slidesProfile 特化层。素材库内容主体；存 .collab/assets/<type>/{id}.json，customFile 经 referenceArtifact.assetId 引用。核心规则：不要描述产物长什么样，要解释如何为新用户、新情境重造一个同类的好产物。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactType", "structure", "qualityCriteria"],
+      "properties": {
+        "artifactType": { "type": "string", "$comment": "L0 细粒度产物定位，如 '纯文字工作周报' / '内部项目提案书'。粗类在 durableAsset.type。" },
+        "suitableScenarios":   { "type": "array", "items": { "type": "string" } },
+        "unsuitableScenarios": { "type": "array", "items": { "type": "string" } },
+        "reader":     { "type": "string", "$comment": "L0 读者：给谁看、最关心什么。" },
+        "writerRole": { "type": "string", "$comment": "L0 写作者在此产物里扮演的角色(员工/项目负责人/创业者…)，影响结构与语气。" },
+        "structure": {
+          "$comment": "L1 结构骨架：每个单元 + 功能 + 是否必需 + 顺序。先说什么后说什么，哪些不能删。",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["unit", "function", "presence"],
+            "properties": {
+              "unit":     { "type": "string", "$comment": "如 '一句话总结' / '背景' / '决策请求'。" },
+              "function": { "type": "string", "$comment": "这一段为什么存在、承担什么作用。" },
+              "presence": { "enum": ["mandatory", "optional"] },
+              "order":    { "type": "integer" }
+            }
+          }
+        },
+        "contentSlots": {
+          "$comment": "L2 信息槽：每个槽该填什么、可选什么、要避免什么。不是填空，是填有质量的信息。",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot"],
+            "properties": {
+              "slot":     { "type": "string" },
+              "fill":     { "type": "array", "items": { "type": "string" }, "$comment": "该填的信息维度，如 做了什么/结果/数据/影响。" },
+              "optional": { "type": "array", "items": { "type": "string" } },
+              "avoid":    { "type": "array", "items": { "type": "string" }, "$comment": "要避免的写法，如 无结果的过程流水账。" }
+            }
+          }
+        },
+        "languageProfile": {
+          "$comment": "L3 语言表达：纯文字产物比 PPT 更吃这层。",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tone":            { "type": "string", "$comment": "汇报/建议/销售/复盘口吻等。" },
+            "conclusionFirst": { "type": "boolean" },
+            "sentenceLength":  { "type": "string", "$comment": "长句/短句倾向。" },
+            "terminology":     { "type": "string", "$comment": "术语密度 + 是否需解释。" },
+            "formality":       { "enum": ["casual", "neutral", "professional"] },
+            "patterns":        { "type": "array", "items": { "type": "string" }, "$comment": "好写法，如 动词明确、结论先行、带数字。" },
+            "antiPatterns":    { "type": "array", "items": { "type": "string" }, "$comment": "AI 味/空话，如 '积极推进''持续优化''取得一定进展'。" }
+          }
+        },
+        "densityRules": {
+          "$comment": "L4 信息密度：该长则长该短则短。如 '总长 400-700 字'、'完成事项 3-5 条'、'每条 1-2 句'、'问题必须带下一步'。",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "usageStrategy": {
+          "$comment": "L5+固定/可变+生成规则：让模板从『分析样例』变成『可调用』。",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fixed":           { "type": "array", "items": { "type": "string" }, "$comment": "固定结构项，必保留。" },
+            "variable":        { "type": "array", "items": { "type": "string" }, "$comment": "随用户内容/场景变化项。" },
+            "removable":       { "type": "array", "items": { "type": "string" }, "$comment": "不建议保留项，如长篇背景/泛泛自评。" },
+            "adaptationRules": { "type": "array", "items": { "type": "string" }, "$comment": "按读者切换：领导/客户/同事/投资人/老师… 各怎么改。" },
+            "generationRules": { "type": "array", "items": { "type": "string" }, "$comment": "可调用规则，如 '没数据不要硬编'、'出现延期必须写原因+下一步'。" }
+          }
+        },
+        "qualityCriteria": {
+          "$comment": "L10 质量评估：好产物长什么样 + 常见坏产物。后续 force4/测试对标用。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["good", "bad"],
+          "properties": {
+            "good": { "type": "array", "items": { "type": "string" } },
+            "bad":  { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "visualProfile": {
+          "$ref": "#/$defs/slidesProfile",
+          "$comment": "仅视觉型产物(PPT/deck)：附带 slide 视觉特化层(页面角色/调用索引/视觉语法)。文字产物不填。"
+        }
+      }
+    },
+    "slidesProfile": {
+      "$comment": "v1.9 ppt-template 的视觉特化层(挂在 artifactProfile.visualProfile 下)。产物定位/场景在 artifactProfile(L0)，这里只管 slide 视觉：L1 pageRoles + L5 slideIndex + L3 brand/function 分类 + L2/L4 视觉语法(内嵌 styleProfile)。Key rule: 不描述每页有什么，描述每页能用来干什么。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pageRoles", "slideIndex"],
+      "properties": {
+        "pageRoles": {
+          "$comment": "L1: per-slide role. Two layers — roleTag (structured, alignable) + roleText (free). keepPolicy drives reuse/delete decisions.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slideRef", "roleText", "keepPolicy"],
+            "properties": {
+              "slideRef": { "type": "string" },
+              "roleTag": {
+                "$comment": "L1 minimal role label; closed common set + 'other' for non-corporate decks.",
+                "enum": ["cover","agenda","summary","kpi","progress","issue","risk","timeline","task","next-steps","decision-request","appendix","closing","other"]
+              },
+              "roleText": { "type": "string", "$comment": "L2 free description, e.g. 'this-week core KPI overview page'." },
+              "keepPolicy": { "enum": ["core", "optional", "deletable"] },
+              "capacity": { "type": "string", "$comment": "plain-language info capacity, e.g. '3 parallel short items, not long text'." },
+              "elementClasses": {
+                "$comment": "L3 core subset: classify elements by function; brand elements feed styleProfile.imitationBoundaries and constraints.forbidden.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "content":    { "type": "array", "items": { "type": "string" } },
+                  "structural": { "type": "array", "items": { "type": "string" } },
+                  "decorative": { "type": "array", "items": { "type": "string" } },
+                  "brand":      { "type": "array", "items": { "type": "string" }, "$comment": "logo / company name / fixed footer → project into imitationBoundaries + constraints.forbidden." }
+                }
+              }
+            }
+          }
+        },
+        "slideIndex": {
+          "$comment": "L5: intent -> which slides. modular=false degrades gracefully (bespoke narrative deck whose pages are not reusable).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["modular"],
+          "properties": {
+            "modular": { "type": "boolean" },
+            "intentMap": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "intent": { "type": "string" },
+                  "slides": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "styleProfile": { "$ref": "#/$defs/styleProfile", "$comment": "L2/L3/L4 visual grammar, reused from v1.8.1." }
+      }
+    },
+    "toolPlanItem": {
+      "$comment": "One tool in a downstream composition plan. Tools may be combined when one downstream skill cannot satisfy force1+force3 alone.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["skillId", "role", "capability", "contractFit"],
+      "properties": {
+        "skillId": { "type": "string" },
+        "role": {
+          "enum": ["primary", "preprocessor", "renderer", "verifier", "fallback"]
+        },
+        "capability": { "type": "string" },
+        "contractFit": {
+          "enum": ["native", "adapter-required", "insufficient"]
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "handoffPreflight": {
+      "$comment": "Before customFile injection: verify force1 satisfies force3, then verify force2/tool composition can carry force1+force3. If this fails, do not inject into an unsuitable downstream skill.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["force1Force3Check", "force2CapabilityCheck", "injectionDecision", "logicChain"],
+      "properties": {
+        "force1Force3Check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["passed", "resolution"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "checkedAgainst": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "mismatches": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "resolution": {
+              "enum": ["proceed", "revise-force1", "ask-user", "stop"]
+            }
+          }
+        },
+        "force2CapabilityCheck": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["passed", "compositionUsed", "toolPlan"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "compositionUsed": { "type": "boolean" },
+            "toolPlan": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/toolPlanItem" }
+            },
+            "missingCapabilities": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "injectionDecision": {
+          "enum": ["inject", "switch-tool", "compose-tools", "ask-install", "stop"]
+        },
+        "recommendedInstall": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "logicChain": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "properties": {
+    "kind": {
+      "enum": ["slides", "document", "diagram", "code"],
+      "$comment": "Renderer family; same set as downstreamPayload kind."
+    },
+    "mode": {
+      "enum": ["render-engine", "co-creator"],
+      "$comment": "Derived record, not authority. Derived from strategy.audienceProfile: report+professional -> render-engine; create+technicalDetail<=low -> co-creator; otherwise co-creator."
+    },
+    "lockStrategy": {
+      "enum": ["zone-first", "level-first"],
+      "$comment": "Initialization strategy. render-engine -> zone-first; co-creator -> level-first."
+    },
+    "lockLevel": {
+      "enum": ["strict", "normal", "loose"],
+      "$comment": "Package-level default constraint level, mirrors taskstate lockLevel."
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "templateId": { "type": "string" }
+      }
+    },
+    "materials": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/material" }
+    },
+    "blocks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/block" }
+    },
+    "referenceArtifact": { "$ref": "#/$defs/referenceArtifact" },
+    "styleProfile": { "$ref": "#/$defs/styleProfile" },
+    "handoffPreflight": { "$ref": "#/$defs/handoffPreflight" },
+    "designReview": { "$ref": "#/$defs/designReview" },
+    "constraints": { "$ref": "#/$defs/constraints" }
+  }
+}

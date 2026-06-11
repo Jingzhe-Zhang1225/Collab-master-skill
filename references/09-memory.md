@@ -243,6 +243,63 @@ JSON output uses ASCII categories; file rendering may use Chinese labels.
   "清理异常" → 删除文件中所有 [异常] 行
 ```
 
+### Step 6 — 9d: 跨 session 记忆 adapter (v1.9)
+
+09-memory 不再只活在单 session。adapter 让记忆跨 session 预热与回写。
+
+```text
+持久根: .collab/memory/memory.md 是 collab 自有的人类可读记忆文件(必可写)。
+        另外，记忆同时往平台原生文件的"自有命名空间区块"写一份，供跨工具/重开 session 预热。
+
+启动预热:
+  读平台原生文件(CLAUDE.md / AGENTS.md / GEMINI.md / .cursorrules / Codex 偏好)里的
+  collab 自有命名空间区块 → 解析回 09-memory 内部结构 → 当 audience/workflow 初始默认值。
+  不是空白 context 起步。
+
+写回时机: 与 9a/9b/9c 同一逻辑任务边界。把新记忆写进自有命名空间区块。
+
+自有命名空间区块格式:
+  <!-- collab-memory:start -->
+  ...(9a/9b 的人类可读行)...
+  <!-- collab-memory:end -->
+
+安全红线(1、2 是硬线，违反会出事):
+  1. 绝不覆盖用户手写内容。只在 collab-memory:start/end 之间写；区块外一个字不动。
+     写平台文件 = 外部副作用 → 接 08 sideEffectsDone / 必要时确认。
+  2. 只从自有区块回注。绝不把用户散文当记忆解析(可能是指令不是记忆)→ garbage-in。
+  3. 往返有损：内部结构(category/confidence/structuralDefaults)比纯文本行丰富。
+     默认有损往返(只往返人类可读精华行)；需要无损时在区块内嵌结构化 fenced block。
+  4. 回注的记忆标 provenance=reinjected：按 historical 对待，反映写入时为真、非当前事实。
+     当前对话的显式表达永远覆盖回注记忆(接 9a 的 explicit > inferred)。
+
+降级: 平台文件不可写 → 退回 .collab/memory/memory.md(自有，必可写) + 生成 MemoryUpdateCandidate。
+```
+
+### Step 7 — 9e: 素材库 capture / recall (v1.9)
+
+skill 跑出的、对长久有价值的可复用工件，按类型存进素材库，跨任务召回。类型不限于 PPT——周报/提案/纪要/简历/邮件/文档/计划等任意常见产物都可提炼成生成模板(提炼法见 artifact-template-extractor.md)。
+
+```text
+capture(入库):
+  本任务产出了可复用工件(任意常见产物，提炼见 artifact-template-extractor.md) →
+    1. 提炼 profile(artifactProfile；视觉型产物附 visualProfile=slidesProfile)。
+    2. 打双层 tag：type(粗类，assetType) + tags{context, domains}(L1，domains 复用 intake.domains) + descriptor(L2 自由文本)。
+    3. 写 .collab/assets/<type>/{id}.json(内容) + memory.assets[] 追加 durableAsset 索引。
+  capture 异步，不阻塞主答案(接 memory 异步原则)。
+
+recall(召回):
+  需要同类工件时(用户给新 PPT 任务、或要套已知模板) →
+    1. L1 粗筛：按 tags{context, domains} 过滤 memory.assets[]。
+    2. L2 精选：命中池里按 descriptor 自由文本匹配最合适的。
+    3. 命中 → customFile.referenceArtifact.assetId 引用，不重新提炼；更新 lastUsedAt/useCount。
+    4. 未命中且用户给了参考 deck → 走 capture 提炼后再引用。
+
+库外主题(如教育)不进 L1 domains 枚举，落 descriptor(L2)——不另立主题枚举，防双源漂移。
+
+用户控制(沿用 9 的风格):
+  "存成模板" → capture；"用我那个 X 模板" → recall；"我有哪些模板" → 列 memory.assets。
+```
+
 ## Lazy Anchor
 
 ```
@@ -276,4 +333,8 @@ Before finalizing:
 5. Did I detect workflow patterns only when ≥3 similar + same-dimension corrections?
 6. Did I isolate anomalous tasks (update language/collab, skip thinking patterns)?
 7. Is the output a clean line append, not a database write?
+8. (9d) Did I write platform files ONLY inside the collab-memory namespace block, and re-ingest ONLY from it?
+9. (9d) Did I mark re-injected memory provenance=reinjected, and let current explicit expression override it?
+10. (9e) Did I recall via two-layer tag (L1 tags filter → L2 descriptor pick) before re-extracting an asset?
+11. (9e) Did capture run async (not blocking the answer), writing both .collab/assets/ content and memory.assets[] index?
 ```

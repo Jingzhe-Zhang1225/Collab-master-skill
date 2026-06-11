@@ -5,7 +5,7 @@
   "$comment": "治理：本文件是 enum 和字段契约的唯一机器真源。00-global-principles.md 只放人话解释，不得另列一套 enum 值。要加新值/新字段：先改本文件 → 用户签字 → 三方(Claude/Codex/DeepSeek)重新读。任何 skill / mock 不得就地引入未登记的值或字段。 用法： 闸A(Codex skill 全量输出) → 校验 #/$defs/intakeOutput | boundaryOutput | strategyOutput（strict，必含全字段）。 闸B(DeepSeek mock 答案卷，部分断言) → mock 文件是 mockCase 数组，逐条校验 #/$defs/mockCase（expected 用 *Assertion，允许只写关心的字段，但写出来的值/字段必须合法）。 全量快照 → #/$defs/taskState。 语言规则：所有 enum / 字段名 / JSON key 用 ASCII；自由文本(knownContext/truthConstraints/...)跟随用户语言，schema 不校验语言只校验结构。",
   "$defs": {
     "intent": {
-      "$comment": "用户想达成的『结果』，封闭 7 个。下游 mode-router 按它路由：report→EXECUTIVE / learn→COACH / create→CREATIVE / debug→DEBUG。write/plan/advise/fact 不是 intent，是 taskType。",
+      "$comment": "用户想达成的『结果』，封闭 9 个。下游 mode-router 按它路由：report→EXECUTIVE / learn→COACH / create→CREATIVE / debug→DEBUG / assess→RISK。write/plan/advise/fact 不是 intent，是 taskType。assess = 用户要求风险评估/安全判断（严不严重/靠不靠谱）；vent = 情绪宣泄/寻求确认（不求方案，只需被听见）。",
       "enum": [
         "learn",
         "execute",
@@ -13,7 +13,9 @@
         "report",
         "create",
         "debug",
-        "explore"
+        "explore",
+        "assess",
+        "vent"
       ]
     },
     "taskTypeName": {
@@ -94,7 +96,8 @@
         "COACH",
         "EXECUTIVE",
         "CREATIVE",
-        "DEBUG"
+        "DEBUG",
+        "RISK"
       ]
     },
     "frameworkRole": {
@@ -802,6 +805,13 @@
         },
         "status": {
           "$ref": "#/$defs/structuredConstraintStatus"
+        },
+        "strength": {
+          "enum": [
+            "force",
+            "soft"
+          ],
+          "$comment": "v1.8 force3 strength. force=hard redline/exact match; soft=directional/semantic match. If absent, compose 6d derives by mode: render-engine -> force, co-creator -> soft."
         }
       },
       "if": {
@@ -1016,7 +1026,8 @@
         "execution-control",
         "intake",
         "strategy",
-        "minimal-usable-version"
+        "minimal-usable-version",
+        "interaction-compose(6d)"
       ]
     },
     "loopType": {
@@ -1047,7 +1058,8 @@
         "three_progress_rounds",
         "two_consecutive_failures",
         "user_progress_request",
-        "quality_gate_feeling_fail_x2"
+        "quality_gate_feeling_fail_x2",
+        "downstream_capability_loss"
       ]
     },
     "memoryStructuralDefaults": {
@@ -1140,6 +1152,13 @@
         },
         "scope": {
           "$ref": "#/$defs/memoryScope"
+        },
+        "provenance": {
+          "$comment": "v1.9 记忆 adapter：live=本 session 提取；reinjected=adapter 从平台文件自有命名空间区块回注的历史记忆，按 historical 对待，当前显式表达可覆盖。缺省视为 live。",
+          "enum": [
+            "live",
+            "reinjected"
+          ]
         }
       }
     },
@@ -1221,6 +1240,186 @@
         }
       }
     },
+    "pipelineStepConfig": {
+      "$comment": "用户定义工作流的管道步骤开关。active=false 的步骤在重放时被跳过。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "intake": {
+          "type": "boolean"
+        },
+        "boundary": {
+          "type": "boolean"
+        },
+        "strategy": {
+          "type": "boolean"
+        },
+        "solutionSpace": {
+          "type": "boolean"
+        },
+        "compose6a": {
+          "type": "boolean"
+        },
+        "compose6b": {
+          "type": "boolean"
+        },
+        "compose6c": {
+          "type": "boolean"
+        },
+        "compose6d": {
+          "type": "boolean"
+        },
+        "qualityGate": {
+          "type": "boolean"
+        },
+        "memory": {
+          "type": "boolean"
+        }
+      }
+    },
+    "lockLevel": {
+      "$comment": "下游工具约束等级。strict: 只允许文字变动，布局/配色/字体/页数锁死；normal: 内容/页数/数据可变，布局/配色/字体锁；loose: 仅格式锁。",
+      "enum": [
+        "strict",
+        "normal",
+        "loose"
+      ]
+    },
+    "userWorkflow": {
+      "$comment": "用户主动保存的可重放工作流。优先级高于 memory.workflowRecord（后者是被动推断）。learnedDefaults 由 09-memory 自动优化：条件=userWorkflow.replayCount≥3 且 workflowRecord.detected=true（同类型关键词）→ 静默合并 workflowRecord.structuralDefaults 到 learnedDefaults，不询问用户。优先级链: pipelineStepConfig > learnedDefaults > workflowRecord.structuralDefaults。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "triggerKeywords",
+        "pipelineStepConfig"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "triggerKeywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "taskPattern": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "intent": {
+              "$ref": "#/$defs/intent"
+            },
+            "taskTypes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/taskTypeName"
+              }
+            }
+          }
+        },
+        "pipelineStepConfig": {
+          "$ref": "#/$defs/pipelineStepConfig"
+        },
+        "lockLevel": {
+          "$ref": "#/$defs/lockLevel"
+        },
+        "learnedDefaults": {
+          "$ref": "#/$defs/memoryStructuralDefaults"
+        },
+        "replayCount": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "lastUsedAt": {
+          "type": "string"
+        }
+      }
+    },
+    "assetType": {
+      "$comment": "v1.9 素材库工件类型（L1 粗类，库索引/召回用）。封闭枚举，加新类型走治理。细粒度产物描述(如'纯文字工作周报')放 artifactProfile.artifactType 自由文本(L2)，不进此枚举。ppt-template 是视觉特化类；其余是文字/逻辑结构类。",
+      "enum": [
+        "ppt-template",
+        "report",
+        "proposal",
+        "meeting-note",
+        "doc",
+        "email",
+        "resume",
+        "plan",
+        "other"
+      ]
+    },
+    "assetContext": {
+      "$comment": "v1.9 素材召回 L1 tag 的语境轴，松对齐 audienceProfile.formality。与 domains 一起构成第一层粗筛标签。",
+      "enum": [
+        "enterprise",
+        "personal",
+        "team",
+        "public",
+        "other"
+      ]
+    },
+    "durableAsset": {
+      "$comment": "v1.9 素材库一条索引(与 userWorkflows 同属持久层)。双层 tag：tags(L1 结构，粗筛，domains 复用现有 domain 枚举以对齐 intake.domains) → descriptor(L2 自由文本，精选)。完整内容在 contentRef 指向的 .collab/assets/<type>/{id}.json。召回流程：先按 tags 过滤，命中池里再按 descriptor 自由文本匹配。库外主题(如教育)落 descriptor，不另立主题枚举。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "tags",
+        "descriptor",
+        "contentRef"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/assetType"
+        },
+        "tags": {
+          "$comment": "L1 结构标签，粗筛用。",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/assetContext"
+            },
+            "domains": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/domain"
+              }
+            }
+          }
+        },
+        "descriptor": {
+          "type": "string",
+          "$comment": "L2 自由文本，L1 的细化，精选用。"
+        },
+        "contentRef": {
+          "type": "string",
+          "$comment": "相对 .collab/assets/<type>/ 的文件路径。"
+        },
+        "source": {
+          "type": "string",
+          "$comment": "来源，如 user-supplied-deck / extracted。"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "lastUsedAt": {
+          "type": "string"
+        },
+        "useCount": {
+          "type": "integer"
+        }
+      }
+    },
     "memoryFields": {
       "type": "object",
       "additionalProperties": false,
@@ -1233,6 +1432,19 @@
         },
         "anomalyRecord": {
           "$ref": "#/$defs/anomalyRecord"
+        },
+        "userWorkflows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/userWorkflow"
+          }
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/durableAsset"
+          },
+          "$comment": "v1.9 素材库索引；内容落 .collab/assets/。"
         }
       }
     },
@@ -1471,6 +1683,9 @@
               "type": "null"
             }
           ]
+        },
+        "downstreamVerification": {
+          "$ref": "#/$defs/downstreamVerification"
         }
       }
     },
@@ -1792,10 +2007,34 @@
           "additionalProperties": false,
           "description": "Per-dimension resolution status of the actualDisagreements entries. A dimension marked 'unresolved' or 'partial' MUST be surfaced to the user by compose 6c as a 分水岭 (see references/roundtable/compose-from-chair.md); a dimension marked 'resolved' may be discarded with rejectedIdeas. A missing/absent dimension defaults to 'unresolved' (conservative: preserve rather than flatten).",
           "properties": {
-            "factual": { "enum": ["resolved", "unresolved", "partial"] },
-            "value": { "enum": ["resolved", "unresolved", "partial"] },
-            "causal": { "enum": ["resolved", "unresolved", "partial"] },
-            "feasibility": { "enum": ["resolved", "unresolved", "partial"] }
+            "factual": {
+              "enum": [
+                "resolved",
+                "unresolved",
+                "partial"
+              ]
+            },
+            "value": {
+              "enum": [
+                "resolved",
+                "unresolved",
+                "partial"
+              ]
+            },
+            "causal": {
+              "enum": [
+                "resolved",
+                "unresolved",
+                "partial"
+              ]
+            },
+            "feasibility": {
+              "enum": [
+                "resolved",
+                "unresolved",
+                "partial"
+              ]
+            }
           }
         },
         "rejectedIdeas": {
@@ -1876,6 +2115,92 @@
         },
         "chair": {
           "$ref": "#/$defs/chairAssertion"
+        }
+      }
+    },
+    "failClass": {
+      "$comment": "Downstream verification failure attribution. input-side=customFile can be revised; capability-side=downstream cannot satisfy the constraint, so revising input will not help.",
+      "enum": [
+        "input-side",
+        "capability-side"
+      ]
+    },
+    "matchType": {
+      "$comment": "Verification matching mode. exact=precise comparison for font/template/locked text; semantic=meaning-level comparison for tone/style guidance.",
+      "enum": [
+        "exact",
+        "semantic"
+      ]
+    },
+    "downstreamVerification": {
+      "$comment": "Downstream artifact verification result. Produced by the downstream verification gate and read by execution-control for routing. force1=collab output alignment; force2=downstream capability/contract alignment; force3=user constraint/reference alignment; force4=agent design-review advice alignment when it is allowed to influence customFile.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ran",
+        "passed"
+      ],
+      "properties": {
+        "ran": {
+          "type": "boolean"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "failClass": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/failClass"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mismatches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "constraint",
+              "matchType"
+            ],
+            "properties": {
+              "constraint": {
+                "type": "string"
+              },
+              "expected": {
+                "type": "string"
+              },
+              "actual": {
+                "type": "string"
+              },
+              "matchType": {
+                "$ref": "#/$defs/matchType"
+              },
+              "force": {
+                "enum": [
+                  "force1",
+                  "force2",
+                  "force3",
+                  "force4"
+                ]
+              }
+            }
+          }
+        },
+        "action": {
+          "enum": [
+            "deliver",
+            "revise-customfile",
+            "sync-user",
+            "stop-loss"
+          ],
+          "$comment": "passed=true -> deliver; input-side -> revise-customfile; capability-side -> sync-user; repeated same-zone input-side -> stop-loss."
+        },
+        "round": {
+          "type": "integer"
         }
       }
     }

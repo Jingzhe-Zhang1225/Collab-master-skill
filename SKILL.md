@@ -178,7 +178,7 @@ Load `references/00-global-principles.md`（enums 和字段契约见该文件的
 
 Read `references/01-intake.md` to parse:
 
-- `intent` (one of learn/execute/decide/report/create/debug/explore — never empty)
+- `intent` (one of learn/execute/decide/report/create/debug/explore/assess/vent — never empty)
 - `taskTypes` (primary + optional secondary cognitive actions)
 - `domains` (medical/legal/financial/academic/safety/privacy — tags, not taskTypes)
 - `knownContext`, `missingContext`, `assumptions`
@@ -203,9 +203,13 @@ Risk follows action, not keyword: analyzing a medical document's grammar ≠ med
 
 | Tier | Scope | Load | Run |
 |------|-------|------|-----|
-| **low** | fact, one-step explain, small rewrite, chat | `06-interaction-compose.md` | compose 6c only |
-| **medium** | advice, decision support, adapted explanation, small plan | `03-strategy.md` + `06-interaction-compose.md` | strategy → compose |
+| **low** | fact, one-step explain, small rewrite, chat, **vent** | `06-interaction-compose.md` | compose 6c only |
+| **medium** | advice, decision support, adapted explanation, small plan, **assess** | `03-strategy.md` + `06-interaction-compose.md` | strategy → compose |
 | **high** | design, debug, open exploration, creative, high-risk, composite | `03-strategy.md` + `05-solution-space.md` + `06-interaction-compose.md` | strategy → 🔴 solution-space (divergence gate) → compose (6a–6d). 🔴 Roundtable gate: novelty fail → escalate light/full per row 8 |
+
+`assess` forces `complexityTier ≥ medium` (boundary overrides low→medium). Routes to `workMode=RISK` in strategy. Output structure: ①风险等级 ②判断依据 ③边界声明。
+
+`vent` routes directly to compose 6c (no strategy/solution-space). Output: ①情境锚定 ②情绪确认 ③可选前瞻≤15字。No plans, no "have you considered..."
 
 🔴 **Upgrade mid-run** when high risk surfaces, sources conflict, the user asks "why", failures repeat, or a downstream handoff becomes necessary.
 
@@ -254,6 +258,8 @@ Multi-fail priority: fatal > fingerprint > hard-to-vary > novelty > feeling.
 | intake 无法确定 intent | best-guess intent + `clarificationNeeded=true`；绝不能留空 | 取 `explore` + `clarificationNeeded=true`，让 boundary 接住 |
 | boundary 无法确定 riskLevel | 默认 `medium`；标 `uncertainClaims` | 升 `high` 并加入 `responseConstraints` 免责声明 |
 | strategy 无法确定 workMode | 默认 `STANDARD`；标 B 级假设 | 降 complexityTier → 关掉 solution-space → 直通 compose 6c |
+| intent=assess 但信息不足以判断风险 | 输出 "不确定" 等级 + 具体缺口 + 建议补充信息；绝不猜等级 | 降为 explore + 标不确定 |
+| intent=vent 但用户转向求解 | 顺着意图转换，重新 intake（intent 改为对应的 decide/execute 等） | 用 `[假设: 转为方案模式]` 标记后继续 |
 | 多来源冲突无法消解 | `sourceConflicts[].resolution="cannot_resolve"`；compose 双列呈现 | compose 终止该维度，输出仅述"存在分歧"，不选边 |
 | quality-gate 同一 gate 失败 3 轮 | 触发 stopLoss；切 revisionTarget | ship 最小可用版（已知缺口附注），不再循环 |
 | compose 6d machinePayload 校验失败 | 重试一次 6d；修正 payload 结构 | 放弃 machinePayload，仅交付 humanContent + 标注"下游未产出" |

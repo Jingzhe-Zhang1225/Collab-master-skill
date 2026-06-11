@@ -82,7 +82,7 @@ If literal wording says "why" but the real goal is repair, choose `intent=debug`
 `intent` MUST be exactly one of the values in `../_shared/taskstate.schema.json` `#/$defs/intent`. Never invent one, never leave it empty.
 
 ```text
-learn | execute | decide | report | create | debug | explore
+learn | execute | decide | report | create | debug | explore | assess | vent
 ```
 
 Map the common confusions (these words are taskTypes, NOT intents; see schema):
@@ -94,6 +94,37 @@ Map the common confusions (these words are taskTypes, NOT intents; see schema):
 "which laptop should I buy"    -> decide   (+ taskType product-select)
 "write a resignation letter"   -> execute  (+ taskType write)
 "plan a study route"           -> execute  (+ taskType plan)
+"这个药能跟那个一起吃吗？严不严重" -> assess  (+ taskType advise, domains=[medical])
+"我好难受，最近太累了"           -> vent    (no taskType; intent=vent 自带 workMode=RISK-output=情绪出口)
+```
+
+**assess** — 用户要求对风险/安全性/可靠性的外部判断，核心问题是"严不严重""靠不靠谱""有没有危险"。
+注意两层分离：`intent=assess` = 用户输出需求；`boundary.riskLevel` = 模型对回答风险的自我评估。两者互不覆盖，可以并存。
+
+检测信号（任一→assess）：
+```text
+"严不严重" / "有没有问题" / "靠谱吗" / "安全吗" / "会不会出事"
+"is this safe" / "should I be worried" / "is this a red flag" / "am I at risk"
+```
+
+**vent** — 用户不求方案，只需被听见、被确认情绪。核心特征：输出的是情绪本身，而非信息请求。
+
+检测信号（≥2条 → 高置信 vent；1条 → 与用户意图结合判断）：
+```text
+1. 情绪崩溃信号: "好累" / "撑不住了" / "受不了了" / "快崩了"
+2. 明确拒绝建议: "我不想听方案" / "不需要你告诉我怎么做" / "别跟我说什么改变"
+3. 自我否定语气: "我也知道没用" / "说了也改变不了" / "早知道了但还是…"
+4. 无信息请求: 整段都是情绪描述，没有疑问句，没有任务指向
+5. 情绪全部输出: "就是想说说" / "随便聊聊" / "没什么，就是有点难受"
+```
+
+vent 例外规则（指纹测试替换）：
+```text
+vent 场景的指纹测试不使用标准的「换用户还成立吗」，改为：
+  测试1: 情绪是否被具体情境锚定（描述了真实场景而非通用感受）？
+         未锚定 → FAIL（答案像通用心灵鸡汤，不成立）
+  测试2: 是否回应了用户表达的具体情绪，而非立即给出行动方案？
+         没有回应情绪直接给方案 → FAIL（对 vent 来说这是反向回应）
 ```
 
 If the result is genuinely ambiguous, pick the **best-guess** intent AND set `clarificationNeeded=true`. Never output an empty intent.
@@ -281,11 +312,13 @@ Those fields belong to boundary. If a mock row expects medical/legal/financial r
 Before finalizing, check:
 
 ```text
-Did I use an intent or taskType not defined in _shared/taskstate.schema.json?  (intent must be one of the schema values)
+Did I use an intent or taskType not defined in _shared/taskstate.schema.json?  (intent must be one of the 9 schema values)
 Did I treat the message as a demand to answer instead of a demand to parse?
 Did I confuse intent with taskTypes? (write/plan/advise/fact-check are taskTypes, not intents)
 Did I mark optional preferences as A-level blockers?
 Did I create risk/web/safety fields that belong to boundary?
 Did I slash-join a domain into a taskType (medical/advise)?
 Did I carry stale previous context across an intent shift?
+For assess: did I separate intent=assess (用户输出需求) from boundary.riskLevel (模型自评风险)？两层不覆盖。
+For vent:   did I detect ≥2 vent signals before assigning intent=vent？vent 时不追问，不塞方案。
 ```
